@@ -1,0 +1,12 @@
+{
+  "instance_id": "REPLACE_WITH_CONNECT_INSTANCE_ID",
+  "contact_flow_id": "REPLACE_WITH_CONTACT_FLOW_ID",
+  "source_phone_number": "REPLACE_WITH_CONNECT_CLAIMED_NUMBER",
+  "destination_phone_number": "010 3089 0260",
+  "name": "carecall-test",
+  "description": "Manual outbound call test",
+  "ring_timeout_in_seconds": 30,
+  "attributes": {
+    "test_mode": "true"
+  }
+}

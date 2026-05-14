@@ -1,0 +1,15 @@
+{
+  "Details": {
+    "ContactData": {
+      "ContactId": "test-contact-id",
+      "Attributes": {
+        "session_id": "sess_test_001",
+        "user_id": "U10001",
+        "answer_1": "오늘 아침은 못 먹었어요.",
+        "answer_2": "목이 아파서 밥을 삼키기 힘들어요.",
+        "answer_3": "어제부터 계속 아프고 혼자 있어요.",
+        "answer_4": "지금 바로 도와줄 사람은 없어요."
+      }
+    }
+  }
+}

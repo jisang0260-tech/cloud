@@ -1,0 +1,15 @@
+{
+  "httpMethod": "GET",
+  "path": "/calls/history/r-001",
+  "pathParameters": {
+    "recipientId": "r-001"
+  },
+  "queryStringParameters": null,
+  "requestContext": {
+    "authorizer": {
+      "claims": {
+        "sub": "test-admin"
+      }
+    }
+  }
+}

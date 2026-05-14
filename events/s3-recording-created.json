@@ -1,0 +1,20 @@
+{
+  "Records": [
+    {
+      "eventVersion": "2.1",
+      "eventSource": "aws:s3",
+      "awsRegion": "ap-northeast-2",
+      "eventTime": "2026-05-12T00:00:00.000Z",
+      "eventName": "ObjectCreated:Put",
+      "s3": {
+        "bucket": {
+          "name": "REPLACE_WITH_CONNECT_RECORDING_BUCKET"
+        },
+        "object": {
+          "key": "connect/carecall/CallRecordings/ivr/2026/05/12/aecbde5c-57c5-4bbc-83b1-de8c3648c9d8_20260512T000000_UTC.wav",
+          "size": 123456
+        }
+      }
+    }
+  ]
+}

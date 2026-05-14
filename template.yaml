@@ -1,0 +1,246 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: CareCall dashboard backend with Amazon Connect, Cognito, API Gateway, Lambda, DynamoDB, and S3.
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 15
+    MemorySize: 256
+    Tracing: Active
+    Environment:
+      Variables:
+        TARGETS_TABLE: !Ref TargetsTable
+        SESSIONS_TABLE: !Ref SessionsTable
+        RECORDINGS_BUCKET: !Ref RecordingsBucket
+        ANALYSIS_BUCKET: !Ref AnalysisBucket
+        APP_TIMEZONE: Asia/Seoul
+        ADMIN_GROUP: admin
+        PRESIGNED_URL_EXPIRES: 3600
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: carecall
+  StageName:
+    Type: String
+    Default: dev
+
+Resources:
+  AdminUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${ProjectName}-${StageName}-admins
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 10
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: false
+        - Name: role
+          AttributeDataType: String
+          Mutable: true
+
+  AdminUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub ${ProjectName}-${StageName}-dashboard
+      UserPoolId: !Ref AdminUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      PreventUserExistenceErrors: ENABLED
+
+  AdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: admin
+      UserPoolId: !Ref AdminUserPool
+      Description: Dashboard administrators
+
+  DashboardApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref StageName
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowHeaders:
+          - Authorization
+          - Content-Type
+        AllowMethods:
+          - GET
+          - PATCH
+          - OPTIONS
+      Auth:
+        DefaultAuthorizer: CognitoJwtAuthorizer
+        Authorizers:
+          CognitoJwtAuthorizer:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${AdminUserPool}
+              audience:
+                - !Ref AdminUserPoolClient
+
+  TargetsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${ProjectName}-${StageName}-targets
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: auto_call_status
+          AttributeType: S
+        - AttributeName: preferred_call_time
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: AutoCallStatusIndex
+          KeySchema:
+            - AttributeName: auto_call_status
+              KeyType: HASH
+            - AttributeName: preferred_call_time
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  SessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${ProjectName}-${StageName}-sessions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+        - AttributeName: call_date
+          AttributeType: S
+        - AttributeName: start_time
+          AttributeType: S
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: CallDateIndex
+          KeySchema:
+            - AttributeName: call_date
+              KeyType: HASH
+            - AttributeName: start_time
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  RecordingsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${ProjectName}-${StageName}-recordings-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+
+  AnalysisBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${ProjectName}-${StageName}-analysis-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+
+  GetCallStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-${StageName}-get-call-status
+      CodeUri: src/
+      Handler: handlers.get_call_status.app.lambda_handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref TargetsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SessionsTable
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref DashboardApi
+            Path: /api/v1/calls/status
+            Method: GET
+
+  GetCallLogDetailFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-${StageName}-get-call-log-detail
+      CodeUri: src/
+      Handler: handlers.get_call_log_detail.app.lambda_handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref TargetsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SessionsTable
+        - S3ReadPolicy:
+            BucketName: !Ref RecordingsBucket
+        - S3ReadPolicy:
+            BucketName: !Ref AnalysisBucket
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref DashboardApi
+            Path: /api/v1/calls/logs/{session_id}
+            Method: GET
+
+  UpdateAutoCallFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-${StageName}-update-auto-call
+      CodeUri: src/
+      Handler: handlers.update_auto_call.app.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TargetsTable
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref DashboardApi
+            Path: /api/v1/targets/{user_id}/auto-call
+            Method: PATCH
+
+Outputs:
+  ApiEndpoint:
+    Description: Dashboard API endpoint
+    Value: !Sub https://${DashboardApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}
+  CognitoUserPoolId:
+    Description: Cognito user pool id
+    Value: !Ref AdminUserPool
+  CognitoUserPoolClientId:
+    Description: Cognito user pool client id
+    Value: !Ref AdminUserPoolClient
+  TargetsTableName:
+    Value: !Ref TargetsTable
+  SessionsTableName:
+    Value: !Ref SessionsTable
+  RecordingsBucketName:
+    Value: !Ref RecordingsBucket
+  AnalysisBucketName:
+    Value: !Ref AnalysisBucket
