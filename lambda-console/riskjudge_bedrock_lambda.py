@@ -284,9 +284,9 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
 
     expression_names = {
         "#status": "status",
-        "#risk_level": "risk_level",
-        "#risk_score": "risk_score",
-        "#risk_reason": "risk_reason",
+        "#riskLevel": "riskLevel",
+        "#riskScore": "riskScore",
+        "#riskReason": "riskReason",
         "#analysis_summary": "analysis_summary",
         "#sentiment": "sentiment",
         "#sentimentScore": "sentimentScore",
@@ -296,9 +296,9 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
     }
     expression_values = {
         ":status": "응답",
-        ":risk_level": decision["risk_level"],
-        ":risk_score": decision["risk_score"],
-        ":risk_reason": decision["risk_reason"],
+        ":riskLevel": decision["risk_level"],
+        ":riskScore": decision["risk_score"],
+        ":riskReason": decision["risk_reason"],
         ":analysis_summary": decision["analysis_summary"],
         ":sentiment": sentiment_result["sentiment"],
         ":sentimentScore": sentiment_result["sentimentScore"],
@@ -308,9 +308,9 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
     }
     set_parts = [
         "#status = :status",
-        "#risk_level = :risk_level",
-        "#risk_score = :risk_score",
-        "#risk_reason = :risk_reason",
+        "#riskLevel = :riskLevel",
+        "#riskScore = :riskScore",
+        "#riskReason = :riskReason",
         "#analysis_summary = :analysis_summary",
         "#sentiment = :sentiment",
         "#sentimentScore = :sentimentScore",
