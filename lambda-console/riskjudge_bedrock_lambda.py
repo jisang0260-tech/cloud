@@ -12,6 +12,8 @@ BEDROCK_MODEL_ID = os.getenv(
     "BEDROCK_MODEL_ID", "global.anthropic.claude-haiku-4-5-20251001-v1:0"
 )
 COMPREHEND_REGION = os.getenv("COMPREHEND_REGION", "ap-northeast-2")
+SNS_REGION = os.getenv("SNS_REGION", "ap-northeast-2")
+SNS_TOPIC_ARN = os.getenv("SNS_TOPIC_ARN", "")
 MAX_ANSWERS = int(os.getenv("MAX_ANSWERS", "8"))
 DATA_REGION = os.getenv("DATA_REGION", "us-east-1")
 CALL_HISTORY_TABLE = os.getenv("CALL_HISTORY_TABLE", "")
@@ -47,6 +49,7 @@ CLOSING_TEXT_BY_RISK = {
 
 bedrock = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
 comprehend = boto3.client("comprehend", region_name=COMPREHEND_REGION)
+sns = boto3.client("sns", region_name=SNS_REGION)
 dynamodb = boto3.resource("dynamodb", region_name=DATA_REGION)
 call_history_table = dynamodb.Table(CALL_HISTORY_TABLE) if CALL_HISTORY_TABLE else None
 users_table = dynamodb.Table(USERS_TABLE) if USERS_TABLE else None
@@ -69,6 +72,8 @@ def lambda_handler(event, context):
     try:
         update_call_history(contact_data, attrs, answers, decision, closing_text, sentiment_result)
         update_user_next_opening_question(attrs, decision)
+        publish_danger_alert(contact_data, attrs, answers, decision)
+
     except Exception as error:
         print("CallHistory/User update failed:", str(error))
         if STRICT_HISTORY_UPDATE:
@@ -377,6 +382,45 @@ def update_user_next_opening_question(attrs, decision):
     except ClientError as error:
         print(f"User next opening question update failed for {recipientId_ATTR}={recipientId}: {error}")
         raise
+
+def publish_danger_alert(contact_data, attrs, answers, decision):
+    if decision["risk_level"] != "danger":
+        return
+
+    if not SNS_TOPIC_ARN:
+        print("SNS danger alert skipped: SNS_TOPIC_ARN is not configured.")
+        return
+
+    recipientName = get_recipient_name(attrs) or ""
+    recipientId = str(attrs.get("recipientId") or "").strip() or ""
+    phone = str(attrs.get("phone_e164") or "").strip() or ""
+ 
+
+    message = "\n".join(
+        [
+            "[CareCall 위험 알림]",
+            "",
+            f"대상자: {recipientName}",
+            f"recipientId: {recipientId}",
+            f"연락처: {phone}",
+            "",
+            f"위험도: {decision['risk_level']}",
+            f"위험 점수: {decision['risk_score']}",
+            f"위험 사유: {decision['risk_reason']}",
+            f"요약: {decision['analysis_summary']}",
+            ""
+        ]
+    )
+
+    try:
+        sns.publish(
+            TopicArn=SNS_TOPIC_ARN,
+            Subject=f"[CareCall 위험] {recipientName}",
+            Message=message,
+        )
+    except Exception as error:
+        print("SNS danger alert failed:", str(error))
+
 
 
 def build_conversation(attrs, answers, closing_text):
