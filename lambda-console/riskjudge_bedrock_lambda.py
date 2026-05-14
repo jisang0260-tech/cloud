@@ -16,7 +16,7 @@ MAX_ANSWERS = int(os.getenv("MAX_ANSWERS", "8"))
 DATA_REGION = os.getenv("DATA_REGION", "us-east-1")
 CALL_HISTORY_TABLE = os.getenv("CALL_HISTORY_TABLE", "")
 USERS_TABLE = os.getenv("USERS_TABLE") or os.getenv("TARGETS_TABLE", "")
-USER_ID_ATTR = os.getenv("USER_ID_ATTR", "user_id")
+recipientId_ATTR = os.getenv("recipientId_ATTR", "recipientId")
 NEXT_OPENING_QUESTION_ATTR = os.getenv(
     "NEXT_OPENING_QUESTION_ATTR",
     "next_opening_question",
@@ -122,7 +122,7 @@ def judge_risk(answers, attrs):
                             {
                                 "task": "Judge final risk level and prepare the next call opening question.",
                                 "session_id": attrs.get("session_id", ""),
-                                "user_id": attrs.get("user_id") or attrs.get("recipientId", ""),
+                                "recipientId": attrs.get("recipientId", ""),
                                 "recipientName": get_recipient_name(attrs),
                                 "current_opening_question": get_current_opening_question(attrs),
                                 "conversation": build_conversation_context(attrs, answers),
@@ -223,20 +223,20 @@ def get_recipient_name(attrs):
     ).strip()
 
 
-def personalize_opening_question(question, recipient_name):
+def personalize_opening_question(question, recipientName):
     question = str(question or "").strip()
-    recipient_name = str(recipient_name or "").strip()
+    recipientName = str(recipientName or "").strip()
 
-    if not question or not recipient_name:
+    if not question or not recipientName:
         return question
-    if recipient_name in question or f"{recipient_name}님" in question:
+    if recipientName in question or f"{recipientName}님" in question:
         return question
 
     marker = "경희대 복지센터입니다."
     if marker in question:
         return question.replace(marker, f"{marker} {recipient_name}님", 1)
 
-    return f"{recipient_name}님 {question}"
+    return f"{recipientName}님 {question}"
 
 
 def build_conversation_context(attrs, answers):
@@ -273,7 +273,7 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
         raise ValueError("Missing required contact attribute: session_id")
 
     contact_id = str(contact_data.get("ContactId") or attrs.get("contact_id") or "").strip()
-    user_id = str(attrs.get("user_id") or attrs.get("recipientId") or "").strip()
+    recipientId = str(attrs.get("recipientId") or "").strip()
     now = datetime.now(timezone.utc).isoformat()
 
     answer_updates = {
@@ -324,17 +324,12 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
         expression_values[":contact_id"] = contact_id
         set_parts.append("#contact_id = if_not_exists(#contact_id, :contact_id)")
 
-    if user_id:
-        expression_names["#user_id"] = "user_id"
-        expression_values[":user_id"] = user_id
-        set_parts.append("#user_id = if_not_exists(#user_id, :user_id)")
+    if recipientId:
+        expression_names["#recipientId"] = "recipientId"
+        expression_values[":recipientId"] = recipientId
+        set_parts.append("#recipientId = if_not_exists(#recipientId, :recipientId)")
 
-    for index, (key, value) in enumerate(answer_updates.items(), start=1):
-        name_token = f"#answer_{index}"
-        value_token = f":answer_{index}"
-        expression_names[name_token] = key
-        expression_values[value_token] = value
-        set_parts.append(f"{name_token} = {value_token}")
+
 
     call_history_table.update_item(
         Key={"session_id": session_id},
@@ -352,8 +347,8 @@ def update_user_next_opening_question(attrs, decision):
         print("User next opening question update skipped: USERS_TABLE is not configured.")
         return
 
-    user_id = str(attrs.get("user_id") or attrs.get("recipientId") or "").strip()
-    if not user_id:
+    recipientId = str(attrs.get("recipientId") or "").strip()
+    if not recipientId:
         print("User next opening question update skipped: user_id/recipientId is missing.")
         return
 
@@ -361,34 +356,26 @@ def update_user_next_opening_question(attrs, decision):
 
     try:
         users_table.update_item(
-            Key={USER_ID_ATTR: user_id},
+            Key={recipientId_ATTR: recipientId},
             UpdateExpression=(
                 "SET #next_opening_question = :next_opening_question, "
-                "#last_analysis_summary = :last_analysis_summary, "
-                "#last_risk_level = :last_risk_level, "
-                "#last_risk_score = :last_risk_score, "
-                "#last_risk_reason = :last_risk_reason, "
-                "#last_call_updated_at = :last_call_updated_at"
+                "#lastRiskLevel = :lastRiskLevel"
+
+             
             ),
             ExpressionAttributeNames={
                 "#next_opening_question": NEXT_OPENING_QUESTION_ATTR,
-                "#last_analysis_summary": "last_analysis_summary",
-                "#last_risk_level": "last_risk_level",
-                "#last_risk_score": "last_risk_score",
-                "#last_risk_reason": "last_risk_reason",
-                "#last_call_updated_at": "last_call_updated_at",
+                "#lastRiskLevel" : "lastRiskLevel"
+        
             },
             ExpressionAttributeValues={
                 ":next_opening_question": decision["next_opening_question"],
-                ":last_analysis_summary": decision["analysis_summary"],
-                ":last_risk_level": decision["risk_level"],
-                ":last_risk_score": decision["risk_score"],
-                ":last_risk_reason": decision["risk_reason"],
-                ":last_call_updated_at": now,
+                ":lastRiskLevel": decision["risk_level"]
+                
             },
         )
     except ClientError as error:
-        print(f"User next opening question update failed for {USER_ID_ATTR}={user_id}: {error}")
+        print(f"User next opening question update failed for {recipientId_ATTR}={recipientId}: {error}")
         raise
 
 
