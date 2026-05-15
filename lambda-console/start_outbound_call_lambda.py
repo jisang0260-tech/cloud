@@ -47,6 +47,9 @@ LEGACY_NEXT_OPENING_PROMPT_ATTR = os.getenv(
 connect_client = boto3.client("connect", region_name=CONNECT_REGION)
 dynamodb = boto3.resource("dynamodb", region_name=DATA_REGION)
 
+KST = ZoneInfo("Asia/Seoul")
+
+
 
 def json_response(status_code, payload):
     return {
@@ -98,7 +101,7 @@ def to_json_safe(value):
     if isinstance(value, dict):
         return {key: to_json_safe(item) for key, item in value.items()}
     if isinstance(value, Decimal):
-        return int(value) if value % 1 == 0 else float(value)
+       return int(value) if value % 1 == 0 else float(value)
     return value
 
 
@@ -120,11 +123,11 @@ def get_phone_from_user(user):
 
 
 def get_user_id(user):
-    return str(user.get("user_id") or user.get("recipientId") or user.get("recipient_id") or "").strip()
+    return str(user.get("recipientId") or user.get("recipient_id") or "").strip()
 
 
 def get_user_name(user):
-    return str(user.get("name") or user.get("user_name") or user.get("recipientName") or "").strip()
+    return str(user.get("recipientName") or "").strip()
 
 
 def get_preferred_time(user):
@@ -289,7 +292,8 @@ def put_pending_call_history(table, user, session_id, phone_e164, current_time):
     if table is None:
         return
 
-    now_utc = iso_utc(current_time)
+    now = datetime.now(KST).isoformat(timespec="seconds")
+
 
     table.put_item(
         Item={
@@ -297,9 +301,8 @@ def put_pending_call_history(table, user, session_id, phone_e164, current_time):
             "recipientId": get_user_id(user),
             "recipientName": get_user_name(user),
             "phone_e164": phone_e164,
-            "call_date": current_time.strftime("%Y-%m-%d"),
-            "callTime": now_utc,
-            "status": "PENDING",
+            "callTime":  current_time.strftime("%Y-%m-%d"),
+            "status": "통화중",
             "duration": None,
             "sentiment": None,
             "sentimentScore": None,
@@ -308,7 +311,7 @@ def put_pending_call_history(table, user, session_id, phone_e164, current_time):
             "summary": "",
             "conversation": [],
             "preferred_time": get_preferred_time(user) or current_time.strftime("%H:%M"),
-            "createdAt": now_utc,
+            "createdAt": current_time,
         },
         ConditionExpression="attribute_not_exists(session_id)",
     )
@@ -317,12 +320,14 @@ def put_pending_call_history(table, user, session_id, phone_e164, current_time):
 def update_call_history_with_contact_id(table, session_id, contact_id, current_time):
     if table is None:
         return
+    
+    now = datetime.now(KST).isoformat(timespec="seconds")
+
 
     table.update_item(
         Key={"session_id": session_id},
         UpdateExpression=(
-            "SET contact_id = :contact_id, "
-            "contactId = :contact_id, "
+            "SET contactId = :contact_id, "
             "#status = :status"
         ),
         ExpressionAttributeNames={
@@ -330,7 +335,7 @@ def update_call_history_with_contact_id(table, session_id, contact_id, current_t
         },
         ExpressionAttributeValues={
             ":contact_id": contact_id,
-            ":status": "IN_PROGRESS",
+            ":status": "통화중",
         },
     )
 
@@ -431,7 +436,7 @@ def lambda_handler(event, context):
                 results.append(
                     {
                         "status": "error",
-                        "user_id": get_user_id(user),
+                        "recipientId": get_user_id(user),
                         "message": str(error),
                     }
                 )
