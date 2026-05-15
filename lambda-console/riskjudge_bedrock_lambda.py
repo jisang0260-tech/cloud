@@ -54,6 +54,8 @@ dynamodb = boto3.resource("dynamodb", region_name=DATA_REGION)
 call_history_table = dynamodb.Table(CALL_HISTORY_TABLE) if CALL_HISTORY_TABLE else None
 users_table = dynamodb.Table(USERS_TABLE) if USERS_TABLE else None
 
+KST = ZoneInfo("Asia/Seoul")
+
 
 def lambda_handler(event, context):
     print("riskjudge event:", json.dumps(event, ensure_ascii=False))
@@ -279,7 +281,7 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
 
     contact_id = str(contact_data.get("ContactId") or attrs.get("contact_id") or "").strip()
     recipientId = str(attrs.get("recipientId") or "").strip()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(KST).isoformat()
 
     answer_updates = {
         answer["key"]: answer["text"]
