@@ -5,8 +5,8 @@ import re
 import boto3
 
 
-BEDROCK_REGION = os.getenv("BEDROCK_REGION", "us-east-1")
-BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "amazon.nova-micro-v1:0")
+BEDROCK_REGION = os.getenv("BEDROCK_REGION", "ap-northeast-1")
+BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "jp.amazon.nova-2-lite-v1:0")
 MAX_TURNS = int(os.getenv("MAX_TURNS", "7"))
 REQUIRED_TURNS = int(os.getenv("REQUIRED_TURNS", "3"))
 
@@ -37,8 +37,6 @@ def lambda_handler(event, context):
         stringify_attributes(
             {
                 "reply_text": decision["reply_text"],
-                "reply_next": decision["reply_text"],
-                f"reply_{current_turn}": decision["reply_text"],
                 "next_action": decision["next_action"],
                 "dialog_reason": decision["reason"],
             }
@@ -57,22 +55,25 @@ def decide_next_step(transcript, turn_index, session_attributes):
                 {
                     "text": (
                         "You are a Korean care-call dialog manager for an elderly care service. "
+                        "your answers are always political and familiar for elderly."
                         "The Connect flow already asked the first question: whether the person ate a meal. "
-                        "The first user answer is about that meal question. "
-                        "Your main goal is to guide a short phone dialog that probes possible risk signals. "
+                        "So The first user answer is about that meal question. "
+                        "Your main goal is to guide a short phone dialog that probes possible risk signals, "
+                        "also you summarize user`s daily life."
                         "Every non-final response must ask exactly one next question. "
                         "If the answer suggests risk, ask a targeted follow-up about that risk: "
                         "for example, if they did not eat, ask why; if they feel sick, ask where or since when; "
                         "if they need help or seem isolated, ask what help is needed. "
+                        "but it does not mean you have to lead diaglog into negative vibe for finding risk signal."
+                        "if there is no risk signal, you can ask a general question about their day."
                         "Use continue_dialog when the answer is understandable and you should ask the next question. "
-                        "Use repeat only when the answer is empty, unintelligible, unrelated, or not usable. "
+                        "Use repeat only when the answer is empty, unintelligible. "
                         "Use final_judge when enough useful answers have been collected or the dialog should end. "
                         f"When turn_index is {MAX_TURNS - 1}, ask only one last essential risk-check question if needed. "
                         f"When turn_index is {MAX_TURNS} or higher, next_action must be final_judge. "
-                        "When next_action is final_judge, reply_text must be a closing statement, not a question. "
-                        "For final_judge, thank the person briefly and say their status will be checked. "
+                         "When next_action is final_judge, reply_text must be a closing statement, not a question. "
                         "Return JSON only. Do not use markdown. "
-                        "reply_text must be exactly one short Korean sentence under 45 characters. "
+                        "reply_text must be one or two short Korean sentence under 45 characters. "
                         "Do not add explanations, advice, greetings, or extra empathy."
                     )
                 }
