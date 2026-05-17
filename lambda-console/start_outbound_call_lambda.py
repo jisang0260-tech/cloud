@@ -301,7 +301,7 @@ def put_pending_call_history(table, user, session_id, phone_e164, current_time):
             "recipientId": get_user_id(user),
             "recipientName": get_user_name(user),
             "phone_e164": phone_e164,
-            "callTime":  current_time.strftime("%Y-%m-%d"),
+            "callTime":  now,
             "status": "통화중",
             "duration": None,
             "sentiment": None,
@@ -311,7 +311,7 @@ def put_pending_call_history(table, user, session_id, phone_e164, current_time):
             "summary": "",
             "conversation": [],
             "preferred_time": get_preferred_time(user) or current_time.strftime("%H:%M"),
-            "createdAt": current_time,
+            "createdAt": now,
         },
         ConditionExpression="attribute_not_exists(session_id)",
     )
