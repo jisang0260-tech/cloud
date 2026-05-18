@@ -333,9 +333,9 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
     ]
 
     if contact_id:
-        expression_names["#contact_id"] = "contact_id"
-        expression_values[":contact_id"] = contact_id
-        set_parts.append("#contact_id = if_not_exists(#contact_id, :contact_id)")
+        expression_names["#contactId"] = "contactId"
+        expression_values[":contactId"] = contact_id
+        set_parts.append("#contactId = if_not_exists(#contactId, :contactId)")
 
     if recipientId:
         expression_names["#recipientId"] = "recipientId"
