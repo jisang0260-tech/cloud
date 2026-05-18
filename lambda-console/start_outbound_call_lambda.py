@@ -214,12 +214,12 @@ def load_targets(event, current_time):
         destination = DEFAULT_DESTINATION_PHONE_NUMBER
 
     if destination:
-        phone_e164 = normalize_phone_number(destination)
+        phoneNumber = normalize_phone_number(destination)
         return [
             {
                 "user_id": str(event.get("user_id") or "manual-test-user"),
                 "name": str(event.get("name") or "manual-test"),
-                "phone_e164": phone_e164,
+                "phoneNumber": phoneNumber,
                 PREFERRED_TIME_ATTR: event.get("preferred_time") or event.get("preferred_call_time") or current_time.strftime("%H:%M"),
             }
         ]
@@ -288,7 +288,7 @@ def scan_targets_by_schedule(table, preferred_time):
     return items[:MAX_TARGETS]
 
 
-def put_pending_call_history(table, user, session_id, phone_e164, current_time):
+def put_pending_call_history(table, user, session_id, phoneNumber, current_time):
     if table is None:
         return
 
@@ -300,7 +300,7 @@ def put_pending_call_history(table, user, session_id, phone_e164, current_time):
             "session_id": session_id,
             "recipientId": get_user_id(user),
             "recipientName": get_user_name(user),
-            "phone_e164": phone_e164,
+            "phoneNumber": phoneNumber,
             "callTime":  now,
             "status": "통화중",
             "duration": None,
@@ -310,14 +310,14 @@ def put_pending_call_history(table, user, session_id, phone_e164, current_time):
             "riskReason": "",
             "summary": "",
             "conversation": [],
-            "preferred_time": get_preferred_time(user) or current_time.strftime("%H:%M"),
+            "autoCallTime": get_preferred_time(user) or current_time.strftime("%H:%M"),
             "createdAt": now,
         },
         ConditionExpression="attribute_not_exists(session_id)",
     )
 
 
-def update_call_history_with_contact_id(table, session_id, contact_id, current_time):
+def update_call_history_with_contact_id(table, session_id, contactId, current_time):
     if table is None:
         return
     
@@ -327,20 +327,20 @@ def update_call_history_with_contact_id(table, session_id, contact_id, current_t
     table.update_item(
         Key={"session_id": session_id},
         UpdateExpression=(
-            "SET contactId = :contact_id, "
+            "SET contactId = :contactId, "
             "#status = :status"
         ),
         ExpressionAttributeNames={
             "#status": "status",
         },
         ExpressionAttributeValues={
-            ":contact_id": contact_id,
+            ":contactId": contactId,
             ":status": "통화중",
         },
     )
 
 
-def build_connect_attributes(event, user, session_id, phone_e164):
+def build_connect_attributes(event, user, session_id, phoneNumber):
     attributes = stringify_dict(event.get("attributes"))
     attributes.update(
         stringify_dict(
@@ -348,8 +348,8 @@ def build_connect_attributes(event, user, session_id, phone_e164):
                 "session_id": session_id,
                 "recipientId": get_user_id(user),
                 "recipientName": get_user_name(user),
-                "phone_e164": phone_e164,
-                "preferred_time": get_preferred_time(user),
+                "phoneNumber": phoneNumber,
+                "autoCallTime": get_preferred_time(user),
                 NEXT_OPENING_QUESTION_ATTR: get_next_opening_question(user),
             }
         )
@@ -370,12 +370,12 @@ def start_call(event, user, current_time, call_history_table):
     if not user_id:
         raise ValueError("User item is missing required value: user_id")
 
-    phone_e164 = normalize_phone_number(get_phone_from_user(user))
+    phoneNumber = normalize_phone_number(get_phone_from_user(user))
     session_id = str(event.get("session_id") or make_session_id(user_id, current_time))
-    attributes = build_connect_attributes(event, user, session_id, phone_e164)
+    attributes = build_connect_attributes(event, user, session_id, phoneNumber)
 
     try:
-        put_pending_call_history(call_history_table, user, session_id, phone_e164, current_time)
+        put_pending_call_history(call_history_table, user, session_id, phoneNumber, current_time)
     except ClientError as error:
         if error.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
             return {
@@ -383,14 +383,14 @@ def start_call(event, user, current_time, call_history_table):
                 "reason": "CallHistory session_id already exists.",
                 "session_id": session_id,
                 "user_id": user_id,
-                "destination_phone_number": phone_e164,
+                "destination_phone_number": phoneNumber,
             }
         raise
 
     request = {
         "InstanceId": instance_id,
         "ContactFlowId": contact_flow_id,
-        "DestinationPhoneNumber": phone_e164,
+        "DestinationPhoneNumber": phoneNumber,
         "ClientToken": str(event.get("client_token") or session_id),
         "Attributes": attributes,
     }
@@ -405,15 +405,15 @@ def start_call(event, user, current_time, call_history_table):
         request["Description"] = str(event["description"])
 
     response = connect_client.start_outbound_voice_contact(**request)
-    contact_id = response.get("ContactId")
-    update_call_history_with_contact_id(call_history_table, session_id, contact_id, current_time)
+    contactId = response.get("ContactId")
+    update_call_history_with_contact_id(call_history_table, session_id, contactId, current_time)
 
     return {
         "status": "success",
-        "contact_id": contact_id,
+        "contactId": contactId,
         "session_id": session_id,
         "user_id": user_id,
-        "destination_phone_number": phone_e164,
+        "destination_phone_number": phoneNumber,
         "attributes": attributes,
     }
 
