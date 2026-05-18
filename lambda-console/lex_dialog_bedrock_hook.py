@@ -9,11 +9,31 @@ BEDROCK_REGION = os.getenv("BEDROCK_REGION", "ap-northeast-1")
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "jp.amazon.nova-2-lite-v1:0")
 MAX_TURNS = int(os.getenv("MAX_TURNS", "7"))
 REQUIRED_TURNS = int(os.getenv("REQUIRED_TURNS", "3"))
-
+NEXT_OPENING_QUESTION_ATTR = os.getenv(
+    "NEXT_OPENING_QUESTION_ATTR",
+    "next_opening_question",
+)
 NEXT_ACTIONS = {"continue_dialog", "repeat", "final_judge"}
 
 bedrock = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
 
+def get_lex_session_attributes(event):
+    return (
+        event.get("sessionState", {}).get("sessionAttributes")
+        or event.get("sessionAttributes")
+        or {}
+    )
+
+
+def get_current_opening_question(event):
+    attrs = get_lex_session_attributes(event)
+
+    return str(
+        attrs.get(NEXT_OPENING_QUESTION_ATTR)
+        or attrs.get("next_opening_question")
+        or attrs.get("NEXT_OPENING_QUESTION_ATTR")
+        or DEFAULT_OPENING_QUESTION
+    ).strip()
 
 def lambda_handler(event, context):
     print("lex event:", json.dumps(event, ensure_ascii=False))
@@ -31,7 +51,7 @@ def lambda_handler(event, context):
         }
     )
 
-    decision = decide_next_step(transcript, current_turn, session_attributes)
+    decision = decide_next_step(event,transcript, current_turn, session_attributes)
 
     session_attributes.update(
         stringify_attributes(
@@ -48,7 +68,9 @@ def lambda_handler(event, context):
     return lex_close_response(event, session_attributes)
 
 
-def decide_next_step(transcript, turn_index, session_attributes):
+def decide_next_step(event,transcript, turn_index, session_attributes):
+
+    current_opening_question = get_current_opening_question(event)
     response = bedrock.converse(
         modelId=BEDROCK_MODEL_ID,
         system=[
@@ -56,9 +78,15 @@ def decide_next_step(transcript, turn_index, session_attributes):
                     "text": (
                         "You are a Korean care-call dialog manager for an elderly care service. "
                         "your answers are always political and familiar for elderly."
-                        "The Connect flow already asked the first question: whether the person ate a meal. "
-                        "So The first user answer is about that meal question. "
-                        "Your main goal is to guide a short phone dialog that probes possible risk signals, "
+                        f"The Connect flow already asked the opening question: '{current_opening_question}'. "
+                        "answer_1 is the user's response to this opening question. "
+                        "question_2 is stored in session attributes and is the AI question asked after answer_1. "
+                        "answer_2 is the user's response to question_2. "
+                        "question_3 is stored in session attributes and is the AI question asked after answer_2. "
+                        "answer_3 is the user's response to question_3. "
+                        "Continue this question_n → answer_n mapping for all turns. "
+                        "Use the full mapped conversation flow to decide the next response. "
+                        "Do not treat every answer as a response to the opening question."
                         "also you summarize user`s daily life."
                         "Every non-final response must ask exactly one next question. "
                         "If the answer suggests risk, ask a targeted follow-up about that risk: "
