@@ -61,10 +61,26 @@ def validate_auto_call_time(value):
     return text
 
 
+def validate_age(value):
+    if value in (None, ""):
+        raise ValueError("age is required.")
+
+    try:
+        age = int(value)
+    except (TypeError, ValueError):
+        raise ValueError("age must be an integer.")
+
+    if age < 0:
+        raise ValueError("age must be 0 or greater.")
+
+    return age
+
+
 
 
 def build_recipient_item(body):
     recipient_name = str(body.get("recipientName") or "").strip()
+    age = validate_age(body.get("age"))
     phone_number = str(body.get("phoneNumber") or "").strip()
     address = str(body.get("address") or "").strip()
     memo = str(body.get("memo") or "").strip()
@@ -84,6 +100,7 @@ def build_recipient_item(body):
         RECIPIENT_ID_ATTR: recipient_id,
         "recipientId": recipient_id,
         "recipientName": recipient_name,
+        "age": age,
         "phoneNumber": phone_number,
         "address": address,
         "memo": memo,
