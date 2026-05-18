@@ -2,6 +2,7 @@ import json
 import os
 import re
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import boto3
 from botocore.exceptions import ClientError
@@ -282,6 +283,8 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
     contact_id = str(contact_data.get("ContactId") or attrs.get("contact_id") or "").strip()
     recipientId = str(attrs.get("recipientId") or "").strip()
     now = datetime.now(KST).isoformat()
+    current_record = get_call_history_item(session_id)
+    duration = calculate_duration_seconds(current_record)
 
     answer_updates = {
         answer["key"]: answer["text"]
@@ -297,6 +300,7 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
         "#analysis_summary": "analysis_summary",
         "#sentiment": "sentiment",
         "#sentimentScore": "sentimentScore",
+        "#duration": "duration",
         "#conversation": "conversation",
         "#updated_at": "updated_at",
         "#judged_at": "judged_at",
@@ -309,6 +313,7 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
         ":analysis_summary": decision["analysis_summary"],
         ":sentiment": sentiment_result["sentiment"],
         ":sentimentScore": sentiment_result["sentimentScore"],
+        ":duration": duration,
         ":conversation": build_conversation(attrs, answers, closing_text),
         ":updated_at": now,
         ":judged_at": now,
@@ -321,6 +326,7 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
         "#analysis_summary = :analysis_summary",
         "#sentiment = :sentiment",
         "#sentimentScore = :sentimentScore",
+        "#duration = :duration",
         "#conversation = :conversation",
         "#updated_at = :updated_at",
         "#judged_at = :judged_at",
@@ -344,6 +350,40 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
         ExpressionAttributeNames=expression_names,
         ExpressionAttributeValues=expression_values,
     )
+
+
+def get_call_history_item(session_id):
+    response = call_history_table.get_item(Key={"session_id": session_id})
+    return response.get("Item") or {}
+
+
+def calculate_duration_seconds(record):
+    started_at = (
+        record.get("callTime")
+        or record.get("createdAt")
+        or record.get("created_at")
+        or record.get("started_at")
+    )
+    started = parse_datetime(started_at)
+
+    if not started:
+        return None
+
+    now = datetime.now(KST)
+    return max(0, int(round((now - started).total_seconds())))
+
+def parse_datetime(value):
+    if not value:
+        return None
+
+    try:
+        text = str(value).strip()
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=KST)
+        return parsed.astimezone(KST)
+    except ValueError:
+        return None
 
 
 def update_user_next_opening_question(attrs, decision):
