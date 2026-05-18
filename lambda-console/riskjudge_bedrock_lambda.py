@@ -86,7 +86,7 @@ def lambda_handler(event, context):
         "risk_level": decision["risk_level"],
         "risk_score": str(decision["risk_score"]),
         "risk_reason": decision["risk_reason"],
-        "analysis_summary": decision["analysis_summary"],
+        "summary": decision["summary"],
         "next_opening_question": decision["next_opening_question"],
         "sentiment": sentiment_result["sentiment"],
         "sentimentScore": sentiment_result["sentimentScore"],
@@ -112,10 +112,10 @@ def judge_risk(answers, attrs):
                     "severe or persistent symptoms, breathing difficulty, fall risk, inability to move, "
                     "request for immediate help, being alone with concerning symptoms, or any unsafe situation. "
                     "risk_score must be an integer from 0 to 100. "
-                    "risk_reason and analysis_summary must be Korean and concise. "
+                    "risk_reason and summary must be Korean and concise. "
                     "next_opening_question must be a Korean phone-call opening for the next call. "
                     "If recipientName is provided, next_opening_question must include that name with 님. "
-                    "It must include a brief greeting and exactly one question based on analysis_summary. "
+                    "It must include a brief greeting and exactly one question based on summary. "
                     "If there is no specific concern, ask a general meal or health check question. "
                     f"next_opening_question must be under {NEXT_OPENING_MAX_CHARS} Korean characters."
                 )
@@ -139,7 +139,7 @@ def judge_risk(answers, attrs):
                                     "risk_level": "normal | caution | danger",
                                     "risk_score": "integer 0-100",
                                     "risk_reason": "short Korean reason",
-                                    "analysis_summary": "one Korean sentence for dashboard",
+                                    "summary": "one Korean sentence for dashboard",
                                     "next_opening_question": "Korean greeting plus one follow-up question for next call",
                                 },
                             },
@@ -297,7 +297,7 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
         "#riskLevel": "riskLevel",
         "#riskScore": "riskScore",
         "#riskReason": "riskReason",
-        "#analysis_summary": "analysis_summary",
+        "#summary": "summary",
         "#sentiment": "sentiment",
         "#sentimentScore": "sentimentScore",
         "#duration": "duration",
@@ -310,7 +310,7 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
         ":riskLevel": decision["risk_level"],
         ":riskScore": decision["risk_score"],
         ":riskReason": decision["risk_reason"],
-        ":analysis_summary": decision["analysis_summary"],
+        ":summary": decision["summary"],
         ":sentiment": sentiment_result["sentiment"],
         ":sentimentScore": sentiment_result["sentimentScore"],
         ":duration": duration,
@@ -323,7 +323,7 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
         "#riskLevel = :riskLevel",
         "#riskScore = :riskScore",
         "#riskReason = :riskReason",
-        "#analysis_summary = :analysis_summary",
+        "#summary = :summary",
         "#sentiment = :sentiment",
         "#sentimentScore = :sentimentScore",
         "#duration = :duration",
@@ -449,7 +449,7 @@ def publish_danger_alert(contact_data, attrs, answers, decision):
             f"위험도: {decision['risk_level']}",
             f"위험 점수: {decision['risk_score']}",
             f"위험 사유: {decision['risk_reason']}",
-            f"요약: {decision['analysis_summary']}",
+            f"요약: {decision['summary']}",
             ""
         ]
     )
@@ -504,7 +504,7 @@ def normalize_decision(raw_decision, recipient_name):
         raise ValueError(f"risk_score out of range: {risk_score}")
 
     risk_reason = str(raw_decision.get("risk_reason") or "").strip()
-    analysis_summary = str(raw_decision.get("analysis_summary") or "").strip()
+    summary = str(raw_decision.get("summary") or "").strip()
     next_opening_question = str(
         raw_decision.get("next_opening_question")
         or raw_decision.get("next_opening_prompt")
@@ -514,8 +514,8 @@ def normalize_decision(raw_decision, recipient_name):
     if not risk_reason:
         raise ValueError("risk_reason is required.")
 
-    if not analysis_summary:
-        raise ValueError("analysis_summary is required.")
+    if not summary:
+        raise ValueError("summary is required.")
 
     if not next_opening_question:
         next_opening_question = "안녕하세요 경희대 복지센터입니다. 오늘 몸 상태는 어떠신가요?"
@@ -529,7 +529,7 @@ def normalize_decision(raw_decision, recipient_name):
         "risk_level": risk_level,
         "risk_score": risk_score,
         "risk_reason": risk_reason,
-        "analysis_summary": analysis_summary,
+        "summary": summary,
         "next_opening_question": next_opening_question,
     }
 
