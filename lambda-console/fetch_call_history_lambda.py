@@ -13,8 +13,8 @@ from botocore.exceptions import ClientError
 DATA_REGION = os.getenv("DATA_REGION", "us-east-1")
 S3_REGION = os.getenv("S3_REGION", "ap-northeast-2")
 CALL_HISTORY_TABLE = os.getenv("CALL_HISTORY_TABLE") or os.getenv("CALL_RECORDS_TABLE", "carecall-call-history-dev")
-RECIPIENT_ID_INDEX = os.getenv("RECIPIENT_ID_INDEX", "RecipientIdIndex")
-RECIPIENT_ID_ATTR = os.getenv("RECIPIENT_ID_ATTR", "user_id")
+RECIPIENT_NAME_INDEX = os.getenv("RECIPIENT_NAME_INDEX", "RecipientNameIndex")
+RECIPIENT_NAME_ATTR = os.getenv("RECIPIENT_NAME_ATTR", "recipientName")
 USE_SCAN_ONLY = os.getenv("USE_SCAN_ONLY", "false").lower() == "true"
 MAX_HISTORY_ITEMS = int(os.getenv("MAX_HISTORY_ITEMS", "100"))
 TRANSCRIPT_BUCKET = os.getenv("TRANSCRIPT_BUCKET", "")
@@ -55,15 +55,15 @@ def get_first(record, *keys, default=None):
     return default
 
 
-def extract_recipient_id(event):
+def extract_recipient_name(event):
     path_parameters = event.get("pathParameters") or {}
-    for key in ("recipientId", "recipient_id", "user_id", "id"):
+    for key in ("recipientName", "recipient_name", "name", "recipientId", "recipient_id", "user_id", "id"):
         value = path_parameters.get(key)
         if value:
             return str(value).strip()
 
     query = event.get("queryStringParameters") or {}
-    for key in ("recipientId", "recipient_id", "user_id", "id"):
+    for key in ("recipientName", "recipient_name", "name", "recipientId", "recipient_id", "user_id", "id"):
         value = query.get(key)
         if value:
             return str(value).strip()
@@ -76,14 +76,14 @@ def extract_recipient_id(event):
     return ""
 
 
-def query_history_by_recipient(recipient_id):
+def query_history_by_recipient_name(recipient_name):
     items = []
     exclusive_start_key = None
 
     while True:
         params = {
-            "IndexName": RECIPIENT_ID_INDEX,
-            "KeyConditionExpression": Key(RECIPIENT_ID_ATTR).eq(recipient_id),
+            "IndexName": RECIPIENT_NAME_INDEX,
+            "KeyConditionExpression": Key(RECIPIENT_NAME_ATTR).eq(recipient_name),
             "ScanIndexForward": False,
         }
         if exclusive_start_key:
@@ -97,17 +97,17 @@ def query_history_by_recipient(recipient_id):
             return items
 
 
-def scan_history_by_recipient(recipient_id):
+def scan_history_by_recipient_name(recipient_name):
     items = []
     exclusive_start_key = None
     attrs = []
-    for attr in (RECIPIENT_ID_ATTR, "recipientId", "recipient_id", "user_id"):
+    for attr in (RECIPIENT_NAME_ATTR, "recipientName", "recipient_name", "name", "target_name", "user_name_snapshot"):
         if attr not in attrs:
             attrs.append(attr)
 
     filter_expression = None
     for attr in attrs:
-        condition = Attr(attr).eq(recipient_id)
+        condition = Attr(attr).eq(recipient_name)
         filter_expression = condition if filter_expression is None else filter_expression | condition
 
     while True:
@@ -123,17 +123,17 @@ def scan_history_by_recipient(recipient_id):
             return items
 
 
-def list_call_history(recipient_id):
+def list_call_history(recipient_name):
     if USE_SCAN_ONLY:
-        return scan_history_by_recipient(recipient_id)
+        return scan_history_by_recipient_name(recipient_name)
 
     try:
-        return query_history_by_recipient(recipient_id)
+        return query_history_by_recipient_name(recipient_name)
     except ClientError as error:
         code = error.response.get("Error", {}).get("Code")
         if code in {"ResourceNotFoundException", "ValidationException"}:
             print(f"History query failed, falling back to scan: {code}")
-            return scan_history_by_recipient(recipient_id)
+            return scan_history_by_recipient_name(recipient_name)
         raise
 
 
@@ -333,15 +333,15 @@ def lambda_handler(event, context):
         if method == "OPTIONS":
             return json_response(200, {})
 
-        recipient_id = extract_recipient_id(event)
-        if not recipient_id:
-            return json_response(400, {"error": "recipientId is required"})
+        recipient_name = extract_recipient_name(event)
+        if not recipient_name:
+            return json_response(400, {"error": "recipientName is required"})
 
-        records = list_call_history(recipient_id)
+        records = list_call_history(recipient_name)
         history = [to_frontend_record(record) for record in records]
         history = sort_history(history)[:MAX_HISTORY_ITEMS]
 
-        return json_response(200, {"recipientId": recipient_id, "history": history})
+        return json_response(200, {"recipientName": recipient_name, "history": history})
     except Exception as error:
         print("fetchCallHistory error:", str(error))
         return json_response(500, {"error": str(error)})
