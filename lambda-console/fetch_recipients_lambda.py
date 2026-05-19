@@ -111,7 +111,7 @@ def build_recipient(item):
 
     return {
         "recipientId": recipient_id,
-        "name": str(get_first(item, "name", "user_name", default="")),
+        "recipientName": str(get_first(item, "recipientName", "user_name", default="")),
         "phoneNumber": format_phone_number(phone),
         "age": normalize_age(get_first(item, "age", default=0)),
         "address": str(get_first(item, "address", "home_address", default="")),
