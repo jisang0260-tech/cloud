@@ -13,9 +13,8 @@ from botocore.exceptions import ClientError
 DATA_REGION = os.getenv("DATA_REGION", "us-east-1")
 CALL_HISTORY_TABLE = os.getenv("CALL_HISTORY_TABLE", "carecall-call-history-dev")
 CALL_DATE_INDEX = os.getenv("CALL_DATE_INDEX", "ByDateIndex")
-CALL_DATE_ATTR = os.getenv("CALL_DATE_ATTR", "call_date")
+CALL_DATE_ATTR = os.getenv("CALL_DATE_ATTR", "createdAt")
 APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Seoul")
-USE_SCAN_ONLY = os.getenv("USE_SCAN_ONLY", "false").lower() == "true"
 
 dynamodb = boto3.resource("dynamodb", region_name=DATA_REGION)
 call_history_table = dynamodb.Table(CALL_HISTORY_TABLE)
@@ -53,14 +52,14 @@ def get_query_date(event):
     return str(query.get("date") or get_kst_today()).strip()
 
 
-def query_call_records(call_date):
+def query_call_records(callTime):
     items = []
     exclusive_start_key = None
 
     while True:
         params = {
             "IndexName": CALL_DATE_INDEX,
-            "KeyConditionExpression": Key(CALL_DATE_ATTR).eq(call_date),
+            "KeyConditionExpression": Key(CALL_DATE_ATTR).eq(callTime),
         }
         if exclusive_start_key:
             params["ExclusiveStartKey"] = exclusive_start_key
@@ -73,14 +72,14 @@ def query_call_records(call_date):
             return items
 
 
-def scan_call_records_by_date(call_date):
+def scan_call_records_by_date(callTime):
     # Fallback for prototype tables where the date GSI has not been created yet.
     items = []
     exclusive_start_key = None
 
     while True:
         params = {
-            "FilterExpression": Attr(CALL_DATE_ATTR).eq(call_date),
+            "FilterExpression": Attr(CALL_DATE_ATTR).eq(callTime),
         }
         if exclusive_start_key:
             params["ExclusiveStartKey"] = exclusive_start_key
@@ -93,17 +92,14 @@ def scan_call_records_by_date(call_date):
             return items
 
 
-def list_today_records(call_date):
-    if USE_SCAN_ONLY:
-        return scan_call_records_by_date(call_date)
-
+def list_today_records(callTime):
     try:
-        return query_call_records(call_date)
+        return query_call_records(callTime)
     except ClientError as error:
         code = error.response.get("Error", {}).get("Code")
         if code in {"ResourceNotFoundException", "ValidationException"}:
             print(f"Query failed, falling back to scan: {code}")
-            return scan_call_records_by_date(call_date)
+            return scan_call_records_by_date(callTime)
         raise
 
 
@@ -195,7 +191,7 @@ def risk_sort_key(record):
     )
 
 
-def build_today_status(call_date, records):
+def build_today_status(callTime, records):
     frontend_records = [to_frontend_record(record) for record in records]
     frontend_records.sort(key=risk_sort_key)
 
@@ -207,7 +203,7 @@ def build_today_status(call_date, records):
         risk_counts[level] += 1
 
     return {
-        "date": call_date,
+        "date": callTime,
         "total": len(frontend_records),
         "riskCounts": risk_counts,
         "records": frontend_records,
@@ -222,9 +218,20 @@ def lambda_handler(event, context):
         if method == "OPTIONS":
             return json_response(200, {})
 
-        call_date = get_query_date(event)
-        records = list_today_records(call_date)
-        return json_response(200, build_today_status(call_date, records))
+        callTime = get_query_date(event)
+        sts = boto3.client("sts")
+        print("DEBUG caller:", json.dumps(sts.get_caller_identity(), ensure_ascii=False))
+        print("DEBUG region:", DATA_REGION)
+        print("DEBUG table:", CALL_HISTORY_TABLE)
+        print("DEBUG date attr:", CALL_DATE_ATTR)
+        print("DEBUG query date:", callTime)
+
+        debug_scan = call_history_table.scan(Limit=50)
+        print("DEBUG scan count:", debug_scan.get("Count"))
+        print("DEBUG scan items:", json.dumps(to_json_safe(debug_scan.get("Items", [])), ensure_ascii=False))
+
+        records = list_today_records(callTime)
+        return json_response(200, build_today_status(callTime, records))
     except Exception as error:
         print("fetchTodayCallStatus error:", str(error))
         return json_response(500, {"error": str(error)})

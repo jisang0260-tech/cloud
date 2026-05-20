@@ -311,7 +311,7 @@ def put_pending_call_history(table, user, session_id, phoneNumber, current_time)
             "summary": "",
             "conversation": [],
             "autoCallTime": get_preferred_time(user) or current_time.strftime("%H:%M"),
-            "createdAt": now,
+            "createdAt": now[:10],
         },
         ConditionExpression="attribute_not_exists(session_id)",
     )
