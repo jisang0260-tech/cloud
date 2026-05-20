@@ -52,16 +52,20 @@ def lambda_handler(event, context):
     )
 
     decision = decide_next_step(event,transcript, current_turn, session_attributes)
+    next_question_index = current_turn + 1
 
-    session_attributes.update(
-        stringify_attributes(
-            {
-                "reply_text": decision["reply_text"],
-                "next_action": decision["next_action"],
-                "dialog_reason": decision["reason"],
-            }
-        )
-    )
+    update_data = {
+        "reply_text": decision["reply_text"],
+        "next_action": decision["next_action"],
+        "dialog_reason": decision["reason"],
+}
+
+    if decision["next_action"] != "final_judge":
+        update_data[f"question_{next_question_index}"] = decision["reply_text"]
+    else:
+        update_data["closing_text"] = decision["reply_text"]
+
+    session_attributes.update(stringify_attributes(update_data))
 
     print("dialog decision:", json.dumps(session_attributes, ensure_ascii=False))
 
@@ -125,7 +129,7 @@ def decide_next_step(event,transcript, turn_index, session_attributes):
                                 "turn_index": turn_index,
                                 "required_turns": REQUIRED_TURNS,
                                 "max_turns": MAX_TURNS,
-                                "previous_answers": collect_answers(session_attributes),
+                                "session_attributes": session_attributes,
                                 "allowed_next_actions": sorted(NEXT_ACTIONS),
                                 "output_schema": {
                                         "reply_text": "Korean sentence under 45 chars",
