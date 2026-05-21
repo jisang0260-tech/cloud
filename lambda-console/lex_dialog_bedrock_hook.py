@@ -106,6 +106,8 @@ def decide_next_step(event,transcript, turn_index, session_attributes):
                         "If the symptom location is already known, do not ask where again. "
                         "Ask about current severity, duration, hospital visit, medicine, or whether they feel better now. "
                         "if they need help or seem isolated, ask what help is needed. "
+                        "Empathy is good, but it must always be followed by exactly one concrete question in the same reply_text. "
+                        "For continue_dialog, never output empathy only; reply_text must end with '?'. "
                         "Use continue_dialog when the answer is understandable and you should ask the next question. "
                         "Use repeat only when the answer is empty, unintelligible. "
                         "Use final_judge when enough useful answers have been collected or the dialog should end. "
