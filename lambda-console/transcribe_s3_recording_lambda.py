@@ -68,7 +68,7 @@ def start_transcription_for_s3_object(bucket, key):
             "key": key,
         }
 
-    contactId = extract_contactID(key)
+    contactId = extract_contactId(key)
     job_name = make_job_name(contactId, key)
     output_key = make_output_key(contactId)
 
