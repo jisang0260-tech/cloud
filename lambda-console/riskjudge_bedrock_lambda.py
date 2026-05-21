@@ -90,6 +90,7 @@ def lambda_handler(event, context):
         "next_opening_question": decision["next_opening_question"],
         "sentiment": sentiment_result["sentiment"],
         "sentimentScore": sentiment_result["sentimentScore"],
+        "closing_text": closing_text,
     }
 
 
