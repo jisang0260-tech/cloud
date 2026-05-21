@@ -242,7 +242,7 @@ def personalize_opening_question(question, recipientName):
 
     marker = "경희대 복지센터입니다."
     if marker in question:
-        return question.replace(marker, f"{marker} {recipient_name}님", 1)
+        return question.replace(marker, f"{marker} {recipientName}님", 1)
 
     return f"{recipientName}님 {question}"
 
@@ -489,7 +489,7 @@ def build_conversation(attrs, answers, closing_text):
     return conversation
 
 
-def normalize_decision(raw_decision, recipient_name):
+def normalize_decision(raw_decision, recipientName):
     risk_level = str(raw_decision.get("risk_level") or "").strip().lower()
 
     if risk_level not in RISK_LEVELS:
@@ -520,7 +520,7 @@ def normalize_decision(raw_decision, recipient_name):
     if not next_opening_question:
         next_opening_question = "안녕하세요 경희대 복지센터입니다. 오늘 몸 상태는 어떠신가요?"
 
-    next_opening_question = personalize_opening_question(next_opening_question, recipient_name)
+    next_opening_question = personalize_opening_question(next_opening_question, recipientName)
 
     if len(next_opening_question) > NEXT_OPENING_MAX_CHARS:
         next_opening_question = next_opening_question[:NEXT_OPENING_MAX_CHARS].rstrip()
