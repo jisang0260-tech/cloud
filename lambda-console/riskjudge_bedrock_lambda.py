@@ -303,8 +303,7 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
         "#sentimentScore": "sentimentScore",
         "#duration": "duration",
         "#conversation": "conversation",
-        "#updated_at": "updated_at",
-        "#judged_at": "judged_at",
+        
     }
     expression_values = {
         ":status": "응답",
@@ -316,8 +315,7 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
         ":sentimentScore": sentiment_result["sentimentScore"],
         ":duration": duration,
         ":conversation": build_conversation(attrs, answers, closing_text),
-        ":updated_at": now,
-        ":judged_at": now,
+       
     }
     set_parts = [
         "#status = :status",
@@ -329,8 +327,7 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
         "#sentimentScore = :sentimentScore",
         "#duration = :duration",
         "#conversation = :conversation",
-        "#updated_at = :updated_at",
-        "#judged_at = :judged_at",
+        
     ]
 
     if contact_id:
