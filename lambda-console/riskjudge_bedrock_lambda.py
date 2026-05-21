@@ -242,7 +242,7 @@ def personalize_opening_question(question, recipientName):
 
     marker = "경희대 복지센터입니다."
     if marker in question:
-        return question.replace(marker, f"{marker} {recipient_name}님", 1)
+        return question.replace(marker, f"{marker} {recipientName}님", 1)
 
     return f"{recipientName}님 {question}"
 
