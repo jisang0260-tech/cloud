@@ -98,10 +98,13 @@ def decide_next_step(event,transcript, turn_index, session_attributes):
                         "Continue this question_n → answer_n mapping for all turns. "
                         "Use the full mapped conversation flow to decide the next response. "
                         "Do not treat every answer as a response to the opening question."
+                        "Do not repeat the same reply_text or a very similar question already asked. "
                         "also you summarize user`s daily life."
                         "Every non-final response must ask exactly one next question. "
                         "If the answer suggests risk, ask a targeted follow-up about that risk. "
-                        "for example, if they did not eat, ask why; if they feel sick, ask where or since when; "
+                        "If the user mentions pain or illness, ask one relevant follow-up only. "
+                        "If the symptom location is already known, do not ask where again. "
+                        "Ask about current severity, duration, hospital visit, medicine, or whether they feel better now. "
                         "if they need help or seem isolated, ask what help is needed. "
                         "Use continue_dialog when the answer is understandable and you should ask the next question. "
                         "Use repeat only when the answer is empty, unintelligible. "
@@ -144,8 +147,8 @@ def decide_next_step(event,transcript, turn_index, session_attributes):
             }
         ],
         inferenceConfig={
-            "maxTokens": 180,
-            "temperature": 0.2,
+            "maxTokens": 300,
+            "temperature": 0.77,
         },
     )
 
@@ -173,6 +176,7 @@ def normalize_decision(raw_decision, turn_index):
 
 
 def lex_close_response(event, session_attributes):
+
     intent = ((event.get("sessionState") or {}).get("intent") or {})
     intent_name = intent.get("name") or "CaptureSpeechIntent"
 
