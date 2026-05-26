@@ -88,7 +88,13 @@ def start_transcription_for_s3_object(bucket, key):
     except ClientError as error:
         code = error.response.get("Error", {}).get("Code")
         if code == "ConflictException":
-            update_call_history_transcript(contactId, job_name, output_key)
+            update_call_history_transcript(
+                contactId=contactId,
+                recording_bucket=bucket,
+                recording_key=key,
+                transcript_bucket=OUTPUT_BUCKET,
+                transcript_key=output_key,
+            )
             return {
                 "status": "exists",
                 "message": "Transcription job already exists.",
@@ -100,7 +106,13 @@ def start_transcription_for_s3_object(bucket, key):
             }
         raise
 
-    update_call_history_transcript(contactId, job_name, output_key)
+    update_call_history_transcript(
+        contactId=contactId,
+        recording_bucket=bucket,
+        recording_key=key,
+        transcript_bucket=OUTPUT_BUCKET,
+        transcript_key=output_key,
+    )
 
     return {
         "status": "started",
@@ -143,7 +155,7 @@ def sanitize_transcribe_name(value):
     return re.sub(r"[^0-9A-Za-z._-]", "-", str(value)).strip(".-_")
 
 
-def update_call_history_transcript(contactId, job_name, output_key):
+def update_call_history_transcript(contactId, recording_bucket, recording_key, transcript_bucket, transcript_key):
     if not UPDATE_CALL_HISTORY or not call_history_table or not contactId:
         return
 
@@ -153,7 +165,6 @@ def update_call_history_transcript(contactId, job_name, output_key):
             print(f"No CallHistory item found for contactId={contactId}")
             return
 
-        now = datetime.now(timezone.utc).isoformat()
         for item in items:
             session_id = item.get("session_id")
             if not session_id:
@@ -162,10 +173,17 @@ def update_call_history_transcript(contactId, job_name, output_key):
             call_history_table.update_item(
                 Key={"session_id": session_id},
                 UpdateExpression=(
-                    "SET transcript_s3_key = :key, "
+                    "SET transcript_s3_bucket = :transcript_bucket, "
+                    "transcript_s3_key = :transcript_key, "
+                    "recording_s3_bucket = :recording_bucket, "
+                    "recording_s3_key = :recording_key, "
+                    "audio_s3_key = :recording_key"
                 ),
                 ExpressionAttributeValues={
-                    ":key": output_key,
+                    ":transcript_bucket": transcript_bucket,
+                    ":transcript_key": transcript_key,
+                    ":recording_bucket": recording_bucket,
+                    ":recording_key": recording_key,
                 },
             )
     except Exception as error:
