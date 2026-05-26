@@ -55,23 +55,27 @@ def get_first(record, *keys, default=None):
     return default
 
 
+def decode_request_value(value):
+    return unquote(str(value or "").strip())
+
+
 def extract_recipient_name(event):
     path_parameters = event.get("pathParameters") or {}
     for key in ("recipientName", "recipient_name", "name", "recipientId", "recipient_id", "user_id", "id"):
         value = path_parameters.get(key)
         if value:
-            return str(value).strip()
+            return decode_request_value(value)
 
     query = event.get("queryStringParameters") or {}
     for key in ("recipientName", "recipient_name", "name", "recipientId", "recipient_id", "user_id", "id"):
         value = query.get(key)
         if value:
-            return str(value).strip()
+            return decode_request_value(value)
 
     path = event.get("path") or event.get("rawPath") or ""
     match = re.search(r"/calls/history/([^/?#]+)$", path)
     if match:
-        return unquote(match.group(1)).strip()
+        return decode_request_value(match.group(1))
 
     return ""
 
