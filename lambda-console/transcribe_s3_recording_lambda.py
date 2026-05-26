@@ -176,8 +176,7 @@ def update_call_history_transcript(contactId, recording_bucket, recording_key, t
                     "SET transcript_s3_bucket = :transcript_bucket, "
                     "transcript_s3_key = :transcript_key, "
                     "recording_s3_bucket = :recording_bucket, "
-                    "recording_s3_key = :recording_key, "
-                    "audio_s3_key = :recording_key"
+                    "recording_s3_key = :recording_key"
                 ),
                 ExpressionAttributeValues={
                     ":transcript_bucket": transcript_bucket,

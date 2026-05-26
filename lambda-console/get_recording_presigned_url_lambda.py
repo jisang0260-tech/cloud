@@ -157,8 +157,6 @@ def resolve_recording_bucket(record):
             record,
             "recording_s3_bucket",
             "recordingS3Bucket",
-            "audio_s3_bucket",
-            "audioS3Bucket",
             default=RECORDINGS_BUCKET,
         )
         or ""
@@ -171,8 +169,6 @@ def resolve_recording_key(record):
             record,
             "recording_s3_key",
             "recordingS3Key",
-            "audio_s3_key",
-            "audioS3Key",
             default="",
         )
         or ""
@@ -245,8 +241,7 @@ def update_cached_recording_key(session_id, bucket, key):
             Key={"session_id": session_id},
             UpdateExpression=(
                 "SET recording_s3_bucket = :recording_bucket, "
-                "recording_s3_key = :recording_key, "
-                "audio_s3_key = :recording_key"
+                "recording_s3_key = :recording_key"
             ),
             ExpressionAttributeValues={
                 ":recording_bucket": bucket,
