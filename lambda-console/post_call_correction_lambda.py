@@ -17,8 +17,10 @@ CALL_CORRECTIONS_TABLE = (
     or "carecall-correction-dev"
 )
 CALL_HISTORY_TABLE = os.getenv("CALL_HISTORY_TABLE") or os.getenv("CALL_RECORDS_TABLE", "carecall-call-history-dev")
+USERS_TABLE = os.getenv("USERS_TABLE") or os.getenv("TARGETS_TABLE", "")
 CONTACTID_INDEX = os.getenv("CONTACTID_INDEX", "ContactIdIndex")
 CONTACTID_ATTR = os.getenv("CONTACTID_ATTR", "contactId")
+RECIPIENT_ID_ATTR = os.getenv("recipientId_ATTR", "recipientId")
 APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Seoul")
 CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://carecall-phi.vercel.app")
 CORS_ALLOW_HEADERS = os.getenv(
@@ -35,6 +37,7 @@ ALLOWED_RISK_LEVELS = {"정상", "주의", "위험"}
 dynamodb = boto3.resource("dynamodb", region_name=DATA_REGION)
 call_history_table = dynamodb.Table(CALL_HISTORY_TABLE)
 corrections_table = dynamodb.Table(CALL_CORRECTIONS_TABLE)
+users_table = dynamodb.Table(USERS_TABLE) if USERS_TABLE else None
 
 
 def json_response(status_code, payload):
@@ -176,6 +179,28 @@ def build_correction_item(contact_id, body):
     }
 
 
+def update_user_last_risk_level(record, corrected_risk_level):
+    if not users_table:
+        print("User lastRiskLevel update skipped: USERS_TABLE is not configured.")
+        return
+
+    recipient_id = str(record.get("recipientId") or "").strip()
+    if not recipient_id:
+        print("User lastRiskLevel update skipped: recipientId is missing from call history.")
+        return
+
+    users_table.update_item(
+        Key={RECIPIENT_ID_ATTR: recipient_id},
+        UpdateExpression="SET #lastRiskLevel = :lastRiskLevel",
+        ExpressionAttributeNames={
+            "#lastRiskLevel": "lastRiskLevel",
+        },
+        ExpressionAttributeValues={
+            ":lastRiskLevel": corrected_risk_level,
+        },
+    )
+
+
 def apply_correction(item):
     records = list_call_history_by_contact(item["contactId"])
     record = choose_latest_record(records)
@@ -203,6 +228,7 @@ def apply_correction(item):
         },
         ConditionExpression="attribute_exists(session_id)",
     )
+    update_user_last_risk_level(record, item["correctedRiskLevel"])
 
     return session_id
 
