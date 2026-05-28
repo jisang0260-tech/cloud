@@ -54,7 +54,10 @@ These files are standalone Python handlers intended for the AWS Lambda console.
 ### UpdateRecipient
 
 - `USERS_TABLE=carecall-users-dev`
+- `CALL_HISTORY_TABLE=carecall-call-history-dev`
 - `RECIPIENT_ID_ATTR=recipientId`
+- `RECIPIENT_ID_INDEX=RecipientIdIndex`
+- `RECIPIENT_ID_HISTORY_ATTR=recipientId`
 - `APP_TIMEZONE=Asia/Seoul`
 
 ### FetchCorrectionStats

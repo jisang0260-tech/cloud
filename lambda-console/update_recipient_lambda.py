@@ -5,13 +5,17 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import boto3
+from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 
 DATA_REGION = os.getenv("DATA_REGION", "us-east-1")
 USERS_TABLE = os.getenv("USERS_TABLE") or os.getenv("RECIPIENTS_TABLE", "carecall-users-dev")
+CALL_HISTORY_TABLE = os.getenv("CALL_HISTORY_TABLE") or os.getenv("CALL_RECORDS_TABLE", "carecall-call-history-dev")
 APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Seoul")
 RECIPIENT_ID_ATTR = os.getenv("RECIPIENT_ID_ATTR", "recipientId")
+RECIPIENT_ID_INDEX = os.getenv("RECIPIENT_ID_INDEX", "RecipientIdIndex")
+RECIPIENT_ID_HISTORY_ATTR = os.getenv("RECIPIENT_ID_HISTORY_ATTR", "recipientId")
 CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://carecall-phi.vercel.app")
 CORS_ALLOW_HEADERS = os.getenv(
     "CORS_ALLOW_HEADERS",
@@ -25,6 +29,7 @@ CORS_ALLOW_METHODS = os.getenv(
 
 dynamodb = boto3.resource("dynamodb", region_name=DATA_REGION)
 users_table = dynamodb.Table(USERS_TABLE)
+call_history_table = dynamodb.Table(CALL_HISTORY_TABLE)
 
 
 def json_response(status_code, payload):
@@ -93,6 +98,79 @@ def get_recipient(recipient_id):
     return response.get("Item")
 
 
+def query_call_history_by_recipient_id(recipient_id):
+    items = []
+    exclusive_start_key = None
+
+    while True:
+        params = {
+            "IndexName": RECIPIENT_ID_INDEX,
+            "KeyConditionExpression": Key(RECIPIENT_ID_HISTORY_ATTR).eq(recipient_id),
+        }
+        if exclusive_start_key:
+            params["ExclusiveStartKey"] = exclusive_start_key
+
+        response = call_history_table.query(**params)
+        items.extend(response.get("Items", []))
+        exclusive_start_key = response.get("LastEvaluatedKey")
+
+        if not exclusive_start_key:
+            return items
+
+
+def scan_call_history_by_recipient_id(recipient_id):
+    items = []
+    exclusive_start_key = None
+
+    while True:
+        params = {
+            "FilterExpression": Attr(RECIPIENT_ID_HISTORY_ATTR).eq(recipient_id),
+        }
+        if exclusive_start_key:
+            params["ExclusiveStartKey"] = exclusive_start_key
+
+        response = call_history_table.scan(**params)
+        items.extend(response.get("Items", []))
+        exclusive_start_key = response.get("LastEvaluatedKey")
+
+        if not exclusive_start_key:
+            return items
+
+
+def list_call_history_by_recipient_id(recipient_id):
+    try:
+        return query_call_history_by_recipient_id(recipient_id)
+    except ClientError as error:
+        code = error.response.get("Error", {}).get("Code")
+        if code in {"ResourceNotFoundException", "ValidationException"}:
+            print(f"RecipientId query failed, falling back to scan: {code}")
+            return scan_call_history_by_recipient_id(recipient_id)
+        raise
+
+
+def sync_call_history_recipient_name(recipient_id, recipient_name, updated_at):
+    records = list_call_history_by_recipient_id(recipient_id)
+
+    for record in records:
+        session_id = str(record.get("session_id") or "").strip()
+        if not session_id:
+            continue
+
+        call_history_table.update_item(
+            Key={"session_id": session_id},
+            UpdateExpression="SET #recipientName = :recipientName, #updated_at = :updated_at",
+            ExpressionAttributeNames={
+                "#recipientName": "recipientName",
+                "#updated_at": "updated_at",
+            },
+            ExpressionAttributeValues={
+                ":recipientName": recipient_name,
+                ":updated_at": updated_at,
+            },
+            ConditionExpression="attribute_exists(session_id)",
+        )
+
+
 def build_update_parts(body):
     expression_names = {}
     expression_values = {}
@@ -136,15 +214,10 @@ def build_update_parts(body):
 
     if "autoCallEnabled" in body:
         enabled = validate_auto_call_enabled(body.get("autoCallEnabled"))
-        status = "ENABLED" if enabled else "DISABLED"
 
         expression_names["#autoCallEnabled"] = "autoCallEnabled"
         expression_values[":autoCallEnabled"] = enabled
         set_parts.append("#autoCallEnabled = :autoCallEnabled")
-
-        expression_names["#auto_call_status"] = "auto_call_status"
-        expression_values[":auto_call_status"] = status
-        set_parts.append("#auto_call_status = :auto_call_status")
 
     if not set_parts:
         raise ValueError("At least one updatable field is required.")
@@ -171,11 +244,13 @@ def lambda_handler(event, context):
         if not recipient_id:
             return json_response(400, {"error": "recipientId is required"})
 
-        if not get_recipient(recipient_id):
+        recipient = get_recipient(recipient_id)
+        if not recipient:
             return json_response(404, {"error": "Recipient not found"})
 
         body = parse_body(event)
         expression_names, expression_values, set_parts = build_update_parts(body)
+        updated_at = expression_values[":updated_at"]
 
         users_table.update_item(
             Key={RECIPIENT_ID_ATTR: recipient_id},
@@ -184,6 +259,12 @@ def lambda_handler(event, context):
             ExpressionAttributeValues=expression_values,
             ConditionExpression=f"attribute_exists({RECIPIENT_ID_ATTR})",
         )
+
+        if "recipientName" in body:
+            previous_name = str(recipient.get("recipientName") or "").strip()
+            next_name = str(body.get("recipientName") or "").strip()
+            if next_name and next_name != previous_name:
+                sync_call_history_recipient_name(recipient_id, next_name, updated_at)
 
         return json_response(200, {"status": "success"})
     except ClientError as error:
