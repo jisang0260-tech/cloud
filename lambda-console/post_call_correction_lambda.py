@@ -2,7 +2,6 @@ import json
 import os
 import re
 from datetime import datetime
-from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import boto3
@@ -161,13 +160,14 @@ def build_correction_item(contact_id, body):
     corrected_risk_level = validate_risk_level(body.get("correctedRiskLevel"), "correctedRiskLevel")
     reason = str(body.get("reason") or "").strip()
     corrected_at = datetime.now(ZoneInfo(APP_TIMEZONE)).isoformat(timespec="seconds")
+    corrected_date = corrected_at[:10]
 
     return {
-        "correctionId": str(uuid4()),
         "contactId": contact_id,
         "originalRiskLevel": original_risk_level,
         "correctedRiskLevel": corrected_risk_level,
         "reason": reason,
+        "correctedDate": corrected_date,
         "correctedAt": corrected_at,
     }
 
@@ -189,14 +189,13 @@ def apply_correction(item):
                 "Put": {
                     "TableName": CALL_CORRECTIONS_TABLE,
                     "Item": {
-                        "correctionId": {"S": item["correctionId"]},
                         "contactId": {"S": item["contactId"]},
                         "originalRiskLevel": {"S": item["originalRiskLevel"]},
                         "correctedRiskLevel": {"S": item["correctedRiskLevel"]},
                         "reason": {"S": item["reason"]},
+                        "correctedDate": {"S": item["correctedDate"]},
                         "correctedAt": {"S": corrected_at},
                     },
-                    "ConditionExpression": "attribute_not_exists(correctionId)",
                 }
             },
             {
