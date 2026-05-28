@@ -17,7 +17,7 @@ CALL_CORRECTIONS_TABLE = (
     or "carecall-correction-dev"
 )
 CALL_HISTORY_TABLE = os.getenv("CALL_HISTORY_TABLE") or os.getenv("CALL_RECORDS_TABLE", "carecall-call-history-dev")
-USERS_TABLE = os.getenv("USERS_TABLE") or os.getenv("TARGETS_TABLE", "")
+USERS_TABLE = os.getenv("USERS_TABLE") or os.getenv("TARGETS_TABLE", "carecall-users-dev")
 CONTACTID_INDEX = os.getenv("CONTACTID_INDEX", "ContactIdIndex")
 CONTACTID_ATTR = os.getenv("CONTACTID_ATTR", "contactId")
 RECIPIENT_ID_ATTR = os.getenv("recipientId_ATTR", "recipientId")
