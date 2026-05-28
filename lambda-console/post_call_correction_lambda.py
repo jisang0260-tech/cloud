@@ -13,7 +13,7 @@ DATA_REGION = os.getenv("DATA_REGION", "us-east-1")
 CALL_CORRECTIONS_TABLE = (
     os.getenv("CALL_CORRECTIONS_TABLE")
     or os.getenv("CORRECTIONS_TABLE")
-    or "carecall-call-corrections-dev"
+    or "carecall-correction-dev"
 )
 APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Seoul")
 
