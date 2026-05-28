@@ -51,6 +51,12 @@ These files are standalone Python handlers intended for the AWS Lambda console.
 - `CALL_CORRECTIONS_TABLE=carecall-call-corrections-dev`
 - `APP_TIMEZONE=Asia/Seoul`
 
+### UpdateRecipient
+
+- `USERS_TABLE=carecall-users-dev`
+- `RECIPIENT_ID_ATTR=recipientId`
+- `APP_TIMEZONE=Asia/Seoul`
+
 ### FetchCorrectionStats
 
 - `CALL_CORRECTIONS_TABLE=carecall-call-corrections-dev`

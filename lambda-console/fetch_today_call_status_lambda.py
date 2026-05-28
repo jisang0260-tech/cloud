@@ -235,10 +235,6 @@ def lambda_handler(event, context):
         print("DEBUG date attr:", CALL_DATE_ATTR)
         print("DEBUG query date:", callTime)
 
-        debug_scan = call_history_table.scan(Limit=50)
-        print("DEBUG scan count:", debug_scan.get("Count"))
-        print("DEBUG scan items:", json.dumps(to_json_safe(debug_scan.get("Items", [])), ensure_ascii=False))
-
         records = list_today_records(callTime)
         return json_response(200, build_today_status(callTime, records))
     except Exception as error:
