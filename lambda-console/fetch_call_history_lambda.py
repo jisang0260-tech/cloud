@@ -18,6 +18,15 @@ RECIPIENT_NAME_ATTR = os.getenv("RECIPIENT_NAME_ATTR", "recipientName")
 USE_SCAN_ONLY = os.getenv("USE_SCAN_ONLY", "false").lower() == "true"
 MAX_HISTORY_ITEMS = int(os.getenv("MAX_HISTORY_ITEMS", "100"))
 TRANSCRIPT_BUCKET = os.getenv("TRANSCRIPT_BUCKET", "")
+CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://carecall-phi.vercel.app")
+CORS_ALLOW_HEADERS = os.getenv(
+    "CORS_ALLOW_HEADERS",
+    "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+)
+CORS_ALLOW_METHODS = os.getenv(
+    "CORS_ALLOW_METHODS",
+    "GET,POST,PATCH,PUT,DELETE,OPTIONS",
+)
 
 dynamodb = boto3.resource("dynamodb", region_name=DATA_REGION)
 s3 = boto3.client("s3", region_name=S3_REGION)
@@ -29,9 +38,9 @@ def json_response(status_code, payload):
         "statusCode": status_code,
         "headers": {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type,Authorization",
-            "Access-Control-Allow-Methods": "GET,OPTIONS",
+            "Access-Control-Allow-Origin": CORS_ALLOW_ORIGIN,
+            "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
+            "Access-Control-Allow-Methods": CORS_ALLOW_METHODS,
         },
         "body": json.dumps(to_json_safe(payload), ensure_ascii=False),
     }
