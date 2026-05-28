@@ -6,6 +6,7 @@ These files are standalone Python handlers intended for the AWS Lambda console.
 
 - `get_call_status_lambda.py`
 - `get_call_log_detail_lambda.py`
+- `post_call_correction_lambda.py`
 - `update_auto_call_lambda.py`
 - `start_outbound_call_lambda.py`
 
@@ -13,6 +14,7 @@ These files are standalone Python handlers intended for the AWS Lambda console.
 
 - `GetCallStatus`
 - `GetCallLogDetail`
+- `PostCallCorrection`
 - `UpdateAutoCall`
 - `StartOutboundCall`
 
@@ -43,6 +45,11 @@ These files are standalone Python handlers intended for the AWS Lambda console.
 
 - `TARGETS_TABLE`
 - `ADMIN_GROUP=admin`
+
+### PostCallCorrection
+
+- `CALL_CORRECTIONS_TABLE=carecall-call-corrections-dev`
+- `APP_TIMEZONE=Asia/Seoul`
 
 ### StartOutboundCall
 
