@@ -6,6 +6,7 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import boto3
+from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 
@@ -15,6 +16,9 @@ CALL_CORRECTIONS_TABLE = (
     or os.getenv("CORRECTIONS_TABLE")
     or "carecall-correction-dev"
 )
+CALL_HISTORY_TABLE = os.getenv("CALL_HISTORY_TABLE") or os.getenv("CALL_RECORDS_TABLE", "carecall-call-history-dev")
+CONTACTID_INDEX = os.getenv("CONTACTID_INDEX", "ContactIdIndex")
+CONTACTID_ATTR = os.getenv("CONTACTID_ATTR", "contactId")
 APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Seoul")
 CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://carecall-phi.vercel.app")
 CORS_ALLOW_HEADERS = os.getenv(
@@ -29,7 +33,7 @@ CORS_ALLOW_METHODS = os.getenv(
 ALLOWED_RISK_LEVELS = {"정상", "주의", "위험"}
 
 dynamodb = boto3.resource("dynamodb", region_name=DATA_REGION)
-corrections_table = dynamodb.Table(CALL_CORRECTIONS_TABLE)
+call_history_table = dynamodb.Table(CALL_HISTORY_TABLE)
 
 
 def json_response(status_code, payload):
@@ -84,6 +88,71 @@ def validate_risk_level(value, field_name):
     return risk_level
 
 
+def query_call_history_by_contact(contact_id):
+    items = []
+    exclusive_start_key = None
+
+    while True:
+        params = {
+            "IndexName": CONTACTID_INDEX,
+            "KeyConditionExpression": Key(CONTACTID_ATTR).eq(contact_id),
+        }
+        if exclusive_start_key:
+            params["ExclusiveStartKey"] = exclusive_start_key
+
+        response = call_history_table.query(**params)
+        items.extend(response.get("Items", []))
+        exclusive_start_key = response.get("LastEvaluatedKey")
+
+        if not exclusive_start_key:
+            return items
+
+
+def scan_call_history_by_contact(contact_id):
+    items = []
+    exclusive_start_key = None
+
+    while True:
+        params = {"FilterExpression": Attr(CONTACTID_ATTR).eq(contact_id)}
+        if exclusive_start_key:
+            params["ExclusiveStartKey"] = exclusive_start_key
+
+        response = call_history_table.scan(**params)
+        items.extend(response.get("Items", []))
+        exclusive_start_key = response.get("LastEvaluatedKey")
+
+        if not exclusive_start_key:
+            return items
+
+
+def list_call_history_by_contact(contact_id):
+    try:
+        return query_call_history_by_contact(contact_id)
+    except ClientError as error:
+        code = error.response.get("Error", {}).get("Code")
+        if code in {"ResourceNotFoundException", "ValidationException"}:
+            print(f"ContactId query failed, falling back to scan: {code}")
+            return scan_call_history_by_contact(contact_id)
+        raise
+
+
+def choose_latest_record(records):
+    def sort_key(record):
+        return str(
+            record.get("callTime")
+            or record.get("started_at")
+            or record.get("start_time")
+            or record.get("updated_at")
+            or record.get("created_at")
+            or record.get("createdAt")
+            or ""
+        )
+
+    if not records:
+        return None
+    return sorted(records, key=sort_key, reverse=True)[0]
+
+
 def build_correction_item(contact_id, body):
     if not contact_id:
         raise ValueError("contactId is required.")
@@ -103,6 +172,57 @@ def build_correction_item(contact_id, body):
     }
 
 
+def apply_correction(item):
+    records = list_call_history_by_contact(item["contactId"])
+    record = choose_latest_record(records)
+    if not record:
+        return None
+
+    session_id = str(record.get("session_id") or "").strip()
+    if not session_id:
+        raise ValueError("Call history record is missing session_id.")
+
+    corrected_at = item["correctedAt"]
+    dynamodb.meta.client.transact_write_items(
+        TransactItems=[
+            {
+                "Put": {
+                    "TableName": CALL_CORRECTIONS_TABLE,
+                    "Item": {
+                        "correctionId": {"S": item["correctionId"]},
+                        "contactId": {"S": item["contactId"]},
+                        "originalRiskLevel": {"S": item["originalRiskLevel"]},
+                        "correctedRiskLevel": {"S": item["correctedRiskLevel"]},
+                        "reason": {"S": item["reason"]},
+                        "correctedAt": {"S": corrected_at},
+                    },
+                    "ConditionExpression": "attribute_not_exists(correctionId)",
+                }
+            },
+            {
+                "Update": {
+                    "TableName": CALL_HISTORY_TABLE,
+                    "Key": {"session_id": {"S": session_id}},
+                    "UpdateExpression": "SET #riskLevel = :riskLevel, #riskReason = :riskReason, #updated_at = :updated_at",
+                    "ExpressionAttributeNames": {
+                        "#riskLevel": "riskLevel",
+                        "#riskReason": "riskReason",
+                        "#updated_at": "updated_at",
+                    },
+                    "ExpressionAttributeValues": {
+                        ":riskLevel": {"S": item["correctedRiskLevel"]},
+                        ":riskReason": {"S": item["reason"]},
+                        ":updated_at": {"S": corrected_at},
+                    },
+                    "ConditionExpression": "attribute_exists(session_id)",
+                }
+            },
+        ]
+    )
+
+    return session_id
+
+
 def lambda_handler(event, context):
     try:
         event = event or {}
@@ -116,11 +236,9 @@ def lambda_handler(event, context):
         contact_id = extract_contact_id(event)
         body = parse_body(event)
         item = build_correction_item(contact_id, body)
-
-        corrections_table.put_item(
-            Item=item,
-            ConditionExpression="attribute_not_exists(correctionId)",
-        )
+        session_id = apply_correction(item)
+        if not session_id:
+            return json_response(404, {"error": "Call history not found"})
 
         return json_response(200, item)
     except ClientError as error:
