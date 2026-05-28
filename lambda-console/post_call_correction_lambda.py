@@ -33,6 +33,7 @@ ALLOWED_RISK_LEVELS = {"정상", "주의", "위험"}
 
 dynamodb = boto3.resource("dynamodb", region_name=DATA_REGION)
 call_history_table = dynamodb.Table(CALL_HISTORY_TABLE)
+corrections_table = dynamodb.Table(CALL_CORRECTIONS_TABLE)
 
 
 def json_response(status_code, payload):
@@ -183,40 +184,21 @@ def apply_correction(item):
         raise ValueError("Call history record is missing session_id.")
 
     corrected_at = item["correctedAt"]
-    dynamodb.meta.client.transact_write_items(
-        TransactItems=[
-            {
-                "Put": {
-                    "TableName": CALL_CORRECTIONS_TABLE,
-                    "Item": {
-                        "contactId": {"S": item["contactId"]},
-                        "originalRiskLevel": {"S": item["originalRiskLevel"]},
-                        "correctedRiskLevel": {"S": item["correctedRiskLevel"]},
-                        "reason": {"S": item["reason"]},
-                        "correctedDate": {"S": item["correctedDate"]},
-                        "correctedAt": {"S": corrected_at},
-                    },
-                }
-            },
-            {
-                "Update": {
-                    "TableName": CALL_HISTORY_TABLE,
-                    "Key": {"session_id": {"S": session_id}},
-                    "UpdateExpression": "SET #riskLevel = :riskLevel, #riskReason = :riskReason, #updated_at = :updated_at",
-                    "ExpressionAttributeNames": {
-                        "#riskLevel": "riskLevel",
-                        "#riskReason": "riskReason",
-                        "#updated_at": "updated_at",
-                    },
-                    "ExpressionAttributeValues": {
-                        ":riskLevel": {"S": item["correctedRiskLevel"]},
-                        ":riskReason": {"S": item["reason"]},
-                        ":updated_at": {"S": corrected_at},
-                    },
-                    "ConditionExpression": "attribute_exists(session_id)",
-                }
-            },
-        ]
+    corrections_table.put_item(Item=item)
+    call_history_table.update_item(
+        Key={"session_id": session_id},
+        UpdateExpression="SET #riskLevel = :riskLevel, #riskReason = :riskReason, #updated_at = :updated_at",
+        ExpressionAttributeNames={
+            "#riskLevel": "riskLevel",
+            "#riskReason": "riskReason",
+            "#updated_at": "updated_at",
+        },
+        ExpressionAttributeValues={
+            ":riskLevel": item["correctedRiskLevel"],
+            ":riskReason": item["reason"],
+            ":updated_at": corrected_at,
+        },
+        ConditionExpression="attribute_exists(session_id)",
     )
 
     return session_id
