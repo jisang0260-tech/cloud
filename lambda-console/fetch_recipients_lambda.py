@@ -8,6 +8,15 @@ from botocore.exceptions import ClientError
 
 DATA_REGION = os.getenv("DATA_REGION", "us-east-1")
 USERS_TABLE = os.getenv("USERS_TABLE") or os.getenv("RECIPIENTS_TABLE", "carecall-users-dev")
+CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://carecall-phi.vercel.app")
+CORS_ALLOW_HEADERS = os.getenv(
+    "CORS_ALLOW_HEADERS",
+    "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+)
+CORS_ALLOW_METHODS = os.getenv(
+    "CORS_ALLOW_METHODS",
+    "GET,POST,PATCH,PUT,DELETE,OPTIONS",
+)
 
 dynamodb = boto3.resource("dynamodb", region_name=DATA_REGION)
 users_table = dynamodb.Table(USERS_TABLE)
@@ -18,9 +27,9 @@ def json_response(status_code, payload):
         "statusCode": status_code,
         "headers": {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type,Authorization",
-            "Access-Control-Allow-Methods": "GET,OPTIONS",
+            "Access-Control-Allow-Origin": CORS_ALLOW_ORIGIN,
+            "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
+            "Access-Control-Allow-Methods": CORS_ALLOW_METHODS,
         },
         "body": json.dumps(to_json_safe(payload), ensure_ascii=False),
     }
