@@ -2,6 +2,7 @@ import json
 import os
 import re
 from datetime import datetime
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import boto3
@@ -160,10 +161,12 @@ def build_correction_item(contact_id, body):
     original_risk_level = validate_risk_level(body.get("originalRiskLevel"), "originalRiskLevel")
     corrected_risk_level = validate_risk_level(body.get("correctedRiskLevel"), "correctedRiskLevel")
     reason = str(body.get("reason") or "").strip()
+    correction_id = str(uuid4())
     corrected_at = datetime.now(ZoneInfo(APP_TIMEZONE)).isoformat(timespec="seconds")
     corrected_date = corrected_at[:10]
 
     return {
+        "correctionId": correction_id,
         "contactId": contact_id,
         "originalRiskLevel": original_risk_level,
         "correctedRiskLevel": corrected_risk_level,
