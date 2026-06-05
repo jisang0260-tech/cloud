@@ -1,7 +1,0 @@
-{
-  "httpMethod": "GET",
-  "path": "/calls/today",
-  "queryStringParameters": {
-    "date": "2026-05-07"
-  }
-}

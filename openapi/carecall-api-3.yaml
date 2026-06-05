@@ -1,0 +1,356 @@
+openapi: 3.0.1
+info:
+  title: Carecall Admin API
+  version: "2026-05-28"
+  description: |
+    관리자 기능용 API 명세입니다.
+    현재 구현 기준으로 아래 3개 엔드포인트를 포함합니다.
+    - 위험도 수동 정정 등록
+    - 정정 통계 조회
+    - 대상자 정보 수정
+
+servers:
+  - url: https://esv5aiiwjg.execute-api.us-east-1.amazonaws.com/{basePath}
+    description: 배포된 API Gateway 엔드포인트
+    variables:
+      basePath:
+        default: khu
+
+tags:
+  - name: Corrections
+    description: 위험도 정정
+  - name: Recipients
+    description: 대상자 관리
+
+paths:
+  /api/calls/{contactId}/correction:
+    post:
+      tags:
+        - Corrections
+      summary: 통화 위험도 정정 등록
+      description: 특정 contactId 통화의 위험도를 수동 정정합니다.
+      operationId: createCallCorrection
+      parameters:
+        - name: contactId
+          in: path
+          required: true
+          description: 정정할 통화의 contactId
+          schema:
+            type: string
+          example: 6b12e000-8684-4d72-a6c7-2a242d0b8b68
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CorrectionRequest"
+            examples:
+              default:
+                value:
+                  originalRiskLevel: 정상
+                  correctedRiskLevel: 위험
+                  reason: 대화 내용상 낙상 위험 감지
+      responses:
+        "200":
+          description: 정정 등록 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CorrectionResponse"
+              examples:
+                success:
+                  value:
+                    correctionId: 550e8400-e29b-41d4-a716-446655440000
+                    contactId: 6b12e000-8684-4d72-a6c7-2a242d0b8b68
+                    originalRiskLevel: 정상
+                    correctedRiskLevel: 위험
+                    reason: 대화 내용상 낙상 위험 감지
+                    correctedDate: "2026-05-28"
+                    correctedAt: "2026-05-28T18:27:09+09:00"
+        "400":
+          description: 요청값 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidRiskLevel:
+                  value:
+                    error: correctedRiskLevel must be one of 정상, 주의, 위험.
+        "404":
+          description: 대상 contactId에 해당하는 통화 이력이 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                notFound:
+                  value:
+                    error: Call history not found
+        "500":
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/calls/corrections/stats:
+    get:
+      tags:
+        - Corrections
+      summary: 정정 통계 조회
+      description: 특정 날짜의 정정 건수를 조회합니다.
+      operationId: fetchCorrectionStats
+      parameters:
+        - name: day
+          in: query
+          required: false
+          description: 조회 기준 날짜 (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+          example: "2026-05-28"
+      responses:
+        "200":
+          description: 정정 통계 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CorrectionStatsResponse"
+              examples:
+                success:
+                  value:
+                    totalCorrections: 5
+                    correctionByLevel:
+                      위험: 2
+                      주의: 1
+                      정상: 2
+        "400":
+          description: 날짜 형식 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidDay:
+                  value:
+                    error: time data '2026/05/28' does not match format '%Y-%m-%d'
+        "500":
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/recipients/{recipientId}:
+    put:
+      tags:
+        - Recipients
+      summary: 대상자 정보 수정
+      description: |
+        기존 대상자 정보를 수정합니다.
+        `recipientName`이 실제로 변경되면 해당 `recipientId`의 기존 call-history `recipientName`도 함께 동기화됩니다.
+      operationId: updateRecipient
+      parameters:
+        - name: recipientId
+          in: path
+          required: true
+          description: 수정할 대상자의 recipientId
+          schema:
+            type: string
+          example: r-09f636a71ef6
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRecipientRequest"
+            examples:
+              updatePhoneAndTime:
+                value:
+                  phoneNumber: 010-9999-8888
+                  autoCallTime: "10:00"
+                  autoCallEnabled: true
+              updateName:
+                value:
+                  recipientName: 박지상
+      responses:
+        "200":
+          description: 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+              examples:
+                success:
+                  value:
+                    status: success
+        "400":
+          description: 요청값 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidBody:
+                  value:
+                    error: At least one updatable field is required.
+        "404":
+          description: 대상자 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                notFound:
+                  value:
+                    error: Recipient not found
+        "500":
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    CorrectionRequest:
+      type: object
+      required:
+        - originalRiskLevel
+        - correctedRiskLevel
+      properties:
+        originalRiskLevel:
+          type: string
+          description: 기존 위험도
+          enum:
+            - 정상
+            - 주의
+            - 위험
+        correctedRiskLevel:
+          type: string
+          description: 변경할 위험도
+          enum:
+            - 정상
+            - 주의
+            - 위험
+        reason:
+          type: string
+          description: 정정 사유
+          nullable: true
+
+    CorrectionResponse:
+      type: object
+      required:
+        - correctionId
+        - contactId
+        - originalRiskLevel
+        - correctedRiskLevel
+        - reason
+        - correctedDate
+        - correctedAt
+      properties:
+        correctionId:
+          type: string
+          format: uuid
+          description: 정정 요청 식별자
+        contactId:
+          type: string
+          description: 정정된 통화의 contactId
+        originalRiskLevel:
+          type: string
+          enum:
+            - 정상
+            - 주의
+            - 위험
+        correctedRiskLevel:
+          type: string
+          enum:
+            - 정상
+            - 주의
+            - 위험
+        reason:
+          type: string
+          description: 정정 사유
+        correctedDate:
+          type: string
+          format: date
+          description: 정정 날짜 (KST)
+        correctedAt:
+          type: string
+          format: date-time
+          description: 정정 시각 (KST)
+
+    CorrectionStatsResponse:
+      type: object
+      required:
+        - totalCorrections
+        - correctionByLevel
+      properties:
+        totalCorrections:
+          type: integer
+          description: 해당 날짜의 총 정정 건수
+          example: 5
+        correctionByLevel:
+          type: object
+          required:
+            - 위험
+            - 주의
+            - 정상
+          properties:
+            위험:
+              type: integer
+              example: 2
+            주의:
+              type: integer
+              example: 1
+            정상:
+              type: integer
+              example: 2
+
+    UpdateRecipientRequest:
+      type: object
+      description: 수정할 필드만 포함하면 됩니다.
+      properties:
+        recipientName:
+          type: string
+          description: 대상자 이름
+        age:
+          type: integer
+          minimum: 0
+          description: 대상자 나이
+        phoneNumber:
+          type: string
+          description: 대상자 전화번호
+          example: 010-1234-5678
+        address:
+          type: string
+          description: 대상자 주소
+        memo:
+          type: string
+          description: 메모
+        autoCallTime:
+          type: string
+          pattern: "^[0-9]{2}:[0-9]{2}$"
+          description: 자동 발신 시간 (HH:MM)
+          example: "09:00"
+        autoCallEnabled:
+          type: boolean
+          description: 자동 발신 사용 여부
+
+    StatusResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: success
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string

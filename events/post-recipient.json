@@ -1,4 +1,0 @@
-{
-  "httpMethod": "POST",
-  "body": "{\"recipientName\":\"박지상\",\"age\":23,\"phoneNumber\":\"010-2323-2323\",\"address\":\"서울시\",\"memo\":\"안녕하세요\",\"autoCallTime\":\"09:00\",\"autoCallEnabled\":true}"
-}
