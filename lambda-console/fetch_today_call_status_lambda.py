@@ -15,7 +15,7 @@ CALL_HISTORY_TABLE = os.getenv("CALL_HISTORY_TABLE", "carecall-call-history-dev"
 CALL_DATE_INDEX = os.getenv("CALL_DATE_INDEX", "ByDateIndex")
 CALL_DATE_ATTR = os.getenv("CALL_DATE_ATTR", "createdAt")
 APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Seoul")
-CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://carecall-phi.vercel.app")
+CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://d29gc62aprgiim.cloudfront.net")
 CORS_ALLOW_HEADERS = os.getenv(
     "CORS_ALLOW_HEADERS",
     "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",

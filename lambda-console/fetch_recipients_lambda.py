@@ -8,7 +8,7 @@ from botocore.exceptions import ClientError
 
 DATA_REGION = os.getenv("DATA_REGION", "us-east-1")
 USERS_TABLE = os.getenv("USERS_TABLE") or os.getenv("RECIPIENTS_TABLE", "carecall-users-dev")
-CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://carecall-phi.vercel.app")
+CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://d29gc62aprgiim.cloudfront.net")
 CORS_ALLOW_HEADERS = os.getenv(
     "CORS_ALLOW_HEADERS",
     "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",

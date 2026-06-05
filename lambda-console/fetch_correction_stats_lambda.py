@@ -19,7 +19,7 @@ CORRECTIONS_BY_DATE_INDEX = os.getenv("CORRECTIONS_BY_DATE_INDEX", "CorrectionsB
 CORRECTED_DATE_ATTR = os.getenv("CORRECTED_DATE_ATTR", "correctedDate")
 CORRECTED_AT_ATTR = os.getenv("CORRECTED_AT_ATTR", "correctedAt")
 APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Seoul")
-CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://carecall-phi.vercel.app")
+CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://d29gc62aprgiim.cloudfront.net")
 CORS_ALLOW_HEADERS = os.getenv(
     "CORS_ALLOW_HEADERS",
     "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",

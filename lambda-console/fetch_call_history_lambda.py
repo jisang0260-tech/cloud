@@ -18,7 +18,7 @@ RECIPIENT_NAME_ATTR = os.getenv("RECIPIENT_NAME_ATTR", "recipientName")
 USE_SCAN_ONLY = os.getenv("USE_SCAN_ONLY", "false").lower() == "true"
 MAX_HISTORY_ITEMS = int(os.getenv("MAX_HISTORY_ITEMS", "100"))
 TRANSCRIPT_BUCKET = os.getenv("TRANSCRIPT_BUCKET", "")
-CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://carecall-phi.vercel.app")
+CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://d29gc62aprgiim.cloudfront.net")
 CORS_ALLOW_HEADERS = os.getenv(
     "CORS_ALLOW_HEADERS",
     "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",

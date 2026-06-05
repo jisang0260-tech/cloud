@@ -16,7 +16,7 @@ APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Seoul")
 RECIPIENT_ID_ATTR = os.getenv("RECIPIENT_ID_ATTR", "recipientId")
 RECIPIENT_ID_INDEX = os.getenv("RECIPIENT_ID_INDEX", "RecipientIdIndex")
 RECIPIENT_ID_HISTORY_ATTR = os.getenv("RECIPIENT_ID_HISTORY_ATTR", "recipientId")
-CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://carecall-phi.vercel.app")
+CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://d29gc62aprgiim.cloudfront.net")
 CORS_ALLOW_HEADERS = os.getenv(
     "CORS_ALLOW_HEADERS",
     "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
