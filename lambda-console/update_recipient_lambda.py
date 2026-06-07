@@ -98,6 +98,14 @@ def get_recipient(recipient_id):
     return response.get("Item")
 
 
+def delete_recipient(recipient_id):
+    users_table.delete_item(
+        Key={RECIPIENT_ID_ATTR: recipient_id},
+        ConditionExpression="attribute_exists(#recipient_id)",
+        ExpressionAttributeNames={"#recipient_id": RECIPIENT_ID_ATTR},
+    )
+
+
 def query_call_history_by_recipient_id(recipient_id):
     items = []
     exclusive_start_key = None
@@ -237,7 +245,7 @@ def lambda_handler(event, context):
 
         if method == "OPTIONS":
             return json_response(200, {})
-        if method != "PUT":
+        if method not in {"PUT", "DELETE"}:
             return json_response(405, {"error": "Method not allowed"})
 
         recipient_id = extract_recipient_id(event)
@@ -247,6 +255,10 @@ def lambda_handler(event, context):
         recipient = get_recipient(recipient_id)
         if not recipient:
             return json_response(404, {"error": "Recipient not found"})
+
+        if method == "DELETE":
+            delete_recipient(recipient_id)
+            return json_response(200, {"status": "success"})
 
         body = parse_body(event)
         expression_names, expression_values, set_parts = build_update_parts(body)

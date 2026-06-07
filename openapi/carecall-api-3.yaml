@@ -211,6 +211,49 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      tags:
+        - Recipients
+      summary: 대상자 삭제
+      description: |
+        대상자 users 테이블의 row를 실제 삭제합니다.
+        call-history는 삭제하지 않습니다.
+      operationId: deleteRecipient
+      parameters:
+        - name: recipientId
+          in: path
+          required: true
+          description: 삭제할 대상자의 recipientId
+          schema:
+            type: string
+          example: r-09f636a71ef6
+      responses:
+        "200":
+          description: 삭제 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+              examples:
+                success:
+                  value:
+                    status: success
+        "404":
+          description: 대상자 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                notFound:
+                  value:
+                    error: Recipient not found
+        "500":
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:

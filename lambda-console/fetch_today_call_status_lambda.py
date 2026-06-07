@@ -188,6 +188,8 @@ def to_frontend_record(record):
         "summary": get_first(record, "summary", "analysis_summary", default=""),
         "conversation": record.get("conversation") or record.get("transcript") or [],
         "createdAt": get_first(record, "createdAt", "created_at", "started_at", "updated_at", default=call_time),
+        "recordingS3Key": get_first(record, "recording_s3_key", "recordingS3Key", default=""),
+        "recordingS3Bucket": get_first(record, "recording_s3_bucket", "recordingS3Bucket", default=""),
     }
 
 
