@@ -328,6 +328,8 @@ def to_frontend_record(record):
         "summary": str(get_first(record, "summary", "analysis_summary", default="")),
         "conversation": [] if risk_level == "미응답" else load_transcript_conversation(record),
         "createdAt": created_at or call_time,
+        "recordingS3Key": str(get_first(record, "recording_s3_key", "recordingS3Key", default="")),
+        "recordingS3Bucket": str(get_first(record, "recording_s3_bucket", "recordingS3Bucket", default="")),
     }
 
 
