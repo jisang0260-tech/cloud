@@ -1,0 +1,25 @@
+{
+  "version": "2.0",
+  "routeKey": "PATCH /api/v1/targets/{user_id}/auto-call",
+  "rawPath": "/api/v1/targets/U10293/auto-call",
+  "rawQueryString": "",
+  "pathParameters": {
+    "user_id": "U10293"
+  },
+  "body": "{\"auto_call_enabled\": false}",
+  "requestContext": {
+    "http": {
+      "method": "PATCH",
+      "path": "/api/v1/targets/U10293/auto-call"
+    },
+    "authorizer": {
+      "jwt": {
+        "claims": {
+          "email": "admin@example.com",
+          "cognito:groups": "admin"
+        }
+      }
+    }
+  },
+  "isBase64Encoded": false
+}

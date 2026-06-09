@@ -13,6 +13,7 @@ DATA_REGION = os.getenv("DATA_REGION", "us-east-1")
 USERS_TABLE = os.getenv("USERS_TABLE") or os.getenv("RECIPIENTS_TABLE", "carecall-users-dev")
 APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Seoul")
 RECIPIENT_ID_ATTR = os.getenv("RECIPIENT_ID_ATTR", "recipientId")
+INTERNAL_ERROR_MESSAGE = "내부 서버 오류가 발생했습니다."
 CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://d29gc62aprgiim.cloudfront.net")
 CORS_ALLOW_HEADERS = os.getenv(
     "CORS_ALLOW_HEADERS",
@@ -141,10 +142,9 @@ def lambda_handler(event, context):
         return json_response(201, {"status": "success"})
     except ClientError as error:
         print("postRecipient DynamoDB error:", json.dumps(error.response, ensure_ascii=False, default=str))
-        message = error.response.get("Error", {}).get("Message", str(error))
-        return json_response(500, {"status": "error", "message": message})
+        return json_response(500, {"status": "error", "message": INTERNAL_ERROR_MESSAGE})
     except (json.JSONDecodeError, ValueError) as error:
         return json_response(400, {"status": "error", "message": str(error)})
     except Exception as error:
         print("postRecipient error:", str(error))
-        return json_response(500, {"status": "error", "message": str(error)})
+        return json_response(500, {"status": "error", "message": INTERNAL_ERROR_MESSAGE})

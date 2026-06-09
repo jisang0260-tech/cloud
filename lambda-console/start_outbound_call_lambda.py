@@ -317,12 +317,9 @@ def put_pending_call_history(table, user, session_id, phoneNumber, current_time)
     )
 
 
-def update_call_history_with_contact_id(table, session_id, contactId, current_time):
+def update_call_history_with_contact_id(table, session_id, contactId):
     if table is None:
         return
-    
-    now = datetime.now(KST).isoformat(timespec="seconds")
-
 
     table.update_item(
         Key={"session_id": session_id},
@@ -406,7 +403,7 @@ def start_call(event, user, current_time, call_history_table):
 
     response = connect_client.start_outbound_voice_contact(**request)
     contactId = response.get("ContactId")
-    update_call_history_with_contact_id(call_history_table, session_id, contactId, current_time)
+    update_call_history_with_contact_id(call_history_table, session_id, contactId)
 
     return {
         "status": "success",
@@ -453,4 +450,5 @@ def lambda_handler(event, context):
             },
         )
     except Exception as error:
-        return json_response(500, {"status": "error", "message": str(error)})
+        print("scheduler error:", str(error))
+        return json_response(500, {"status": "error", "message": "내부 서버 오류가 발생했습니다."})

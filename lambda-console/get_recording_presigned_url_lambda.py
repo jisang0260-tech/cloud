@@ -7,7 +7,13 @@ import boto3
 
 S3_REGION = os.getenv("S3_REGION", "ap-northeast-2")
 RECORDINGS_BUCKET = os.getenv("RECORDINGS_BUCKET", "")
+# Buckets the caller is allowed to read from. RECORDINGS_BUCKET is always
+# included; set ALLOWED_BUCKETS (comma-separated) to permit extra buckets.
+ALLOWED_BUCKETS = {b.strip() for b in os.getenv("ALLOWED_BUCKETS", "").split(",") if b.strip()}
+# Optional key prefix the recording key must start with (e.g. "recordings/").
+RECORDING_KEY_PREFIX = os.getenv("RECORDING_KEY_PREFIX", "").strip()
 PRESIGNED_URL_EXPIRES = int(os.getenv("PRESIGNED_URL_EXPIRES", "300"))
+INTERNAL_ERROR_MESSAGE = "내부 서버 오류가 발생했습니다."
 CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://d29gc62aprgiim.cloudfront.net")
 CORS_ALLOW_HEADERS = os.getenv(
     "CORS_ALLOW_HEADERS",
@@ -45,6 +51,25 @@ def to_bool(value):
     return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
+def allowed_buckets():
+    buckets = set(ALLOWED_BUCKETS)
+    if RECORDINGS_BUCKET:
+        buckets.add(RECORDINGS_BUCKET)
+    return buckets
+
+
+def is_valid_recording_key(key):
+    if not key:
+        return False
+    # Block path traversal and absolute keys so the caller cannot escape
+    # the intended recording layout.
+    if key.startswith("/") or ".." in key:
+        return False
+    if RECORDING_KEY_PREFIX and not key.startswith(RECORDING_KEY_PREFIX):
+        return False
+    return True
+
+
 def extract_request_values(event):
     path_parameters = event.get("pathParameters") or {}
     query = event.get("queryStringParameters") or {}
@@ -69,7 +94,14 @@ def extract_request_values(event):
     ).strip()
     download = to_bool(query.get("download"))
 
-    return recording_key, recording_bucket, download
+    # Optional metadata the caller can pass to get a human-friendly download
+    # filename (e.g. "홍길동-2026-06-09.wav"). Falls back to the generic name.
+    record = {
+        "recipientName": str(query.get("recipientName") or query.get("recipient_name") or "").strip(),
+        "createdAt": str(query.get("date") or query.get("createdAt") or query.get("created_at") or "").strip(),
+    }
+
+    return recording_key, recording_bucket, download, record
 
 
 def build_download_filename(record, key):
@@ -108,7 +140,7 @@ def lambda_handler(event, context):
         if method == "OPTIONS":
             return json_response(200, {})
 
-        recording_key, recording_bucket, download = extract_request_values(event)
+        recording_key, recording_bucket, download, record = extract_request_values(event)
         if not recording_key:
             return json_response(400, {"error": "key is required"})
 
@@ -116,7 +148,15 @@ def lambda_handler(event, context):
         if not bucket:
             return json_response(500, {"error": "Recordings bucket is not configured"})
 
-        url = generate_presigned_url(bucket, recording_key, download, {})
+        # Only hand out presigned URLs for allow-listed buckets and well-formed
+        # keys; otherwise a caller could read arbitrary objects the Lambda role
+        # can reach by supplying their own bucket/key.
+        if bucket not in allowed_buckets():
+            return json_response(403, {"error": "Bucket is not allowed"})
+        if not is_valid_recording_key(recording_key):
+            return json_response(400, {"error": "Invalid recording key"})
+
+        url = generate_presigned_url(bucket, recording_key, download, record)
 
         return json_response(
             200,
@@ -130,4 +170,4 @@ def lambda_handler(event, context):
         )
     except Exception as error:
         print("getRecordingPresignedUrl error:", str(error))
-        return json_response(500, {"error": str(error)})
+        return json_response(500, {"error": INTERNAL_ERROR_MESSAGE})

@@ -283,7 +283,6 @@ def update_call_history(contact_data, attrs, answers, decision, closing_text, se
 
     contact_id = str(contact_data.get("ContactId") or attrs.get("contact_id") or "").strip()
     recipientId = str(attrs.get("recipientId") or "").strip()
-    now = datetime.now(KST).isoformat()
     current_record = get_call_history_item(session_id)
     duration = calculate_duration_seconds(current_record)
 
