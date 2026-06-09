@@ -16,6 +16,7 @@ APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Seoul")
 RECIPIENT_ID_ATTR = os.getenv("RECIPIENT_ID_ATTR", "recipientId")
 RECIPIENT_ID_INDEX = os.getenv("RECIPIENT_ID_INDEX", "RecipientIdIndex")
 RECIPIENT_ID_HISTORY_ATTR = os.getenv("RECIPIENT_ID_HISTORY_ATTR", "recipientId")
+INTERNAL_ERROR_MESSAGE = "내부 서버 오류가 발생했습니다."
 CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://d29gc62aprgiim.cloudfront.net")
 CORS_ALLOW_HEADERS = os.getenv(
     "CORS_ALLOW_HEADERS",
@@ -281,12 +282,11 @@ def lambda_handler(event, context):
         return json_response(200, {"status": "success"})
     except ClientError as error:
         print("updateRecipient DynamoDB error:", json.dumps(error.response, ensure_ascii=False, default=str))
-        message = error.response.get("Error", {}).get("Message", str(error))
         if error.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
             return json_response(404, {"error": "Recipient not found"})
-        return json_response(500, {"error": message})
+        return json_response(500, {"error": INTERNAL_ERROR_MESSAGE})
     except (json.JSONDecodeError, ValueError) as error:
         return json_response(400, {"error": str(error)})
     except Exception as error:
         print("updateRecipient error:", str(error))
-        return json_response(500, {"error": str(error)})
+        return json_response(500, {"error": INTERNAL_ERROR_MESSAGE})

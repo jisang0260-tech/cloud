@@ -453,4 +453,5 @@ def lambda_handler(event, context):
             },
         )
     except Exception as error:
-        return json_response(500, {"status": "error", "message": str(error)})
+        print("scheduler error:", str(error))
+        return json_response(500, {"status": "error", "message": "내부 서버 오류가 발생했습니다."})

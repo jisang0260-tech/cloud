@@ -13,6 +13,7 @@ ALLOWED_BUCKETS = {b.strip() for b in os.getenv("ALLOWED_BUCKETS", "").split(","
 # Optional key prefix the recording key must start with (e.g. "recordings/").
 RECORDING_KEY_PREFIX = os.getenv("RECORDING_KEY_PREFIX", "").strip()
 PRESIGNED_URL_EXPIRES = int(os.getenv("PRESIGNED_URL_EXPIRES", "300"))
+INTERNAL_ERROR_MESSAGE = "내부 서버 오류가 발생했습니다."
 CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://d29gc62aprgiim.cloudfront.net")
 CORS_ALLOW_HEADERS = os.getenv(
     "CORS_ALLOW_HEADERS",
@@ -162,4 +163,4 @@ def lambda_handler(event, context):
         )
     except Exception as error:
         print("getRecordingPresignedUrl error:", str(error))
-        return json_response(500, {"error": str(error)})
+        return json_response(500, {"error": INTERNAL_ERROR_MESSAGE})
