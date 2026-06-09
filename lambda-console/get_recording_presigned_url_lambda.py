@@ -7,6 +7,11 @@ import boto3
 
 S3_REGION = os.getenv("S3_REGION", "ap-northeast-2")
 RECORDINGS_BUCKET = os.getenv("RECORDINGS_BUCKET", "")
+# Buckets the caller is allowed to read from. RECORDINGS_BUCKET is always
+# included; set ALLOWED_BUCKETS (comma-separated) to permit extra buckets.
+ALLOWED_BUCKETS = {b.strip() for b in os.getenv("ALLOWED_BUCKETS", "").split(",") if b.strip()}
+# Optional key prefix the recording key must start with (e.g. "recordings/").
+RECORDING_KEY_PREFIX = os.getenv("RECORDING_KEY_PREFIX", "").strip()
 PRESIGNED_URL_EXPIRES = int(os.getenv("PRESIGNED_URL_EXPIRES", "300"))
 CORS_ALLOW_ORIGIN = os.getenv("CORS_ALLOW_ORIGIN", "https://d29gc62aprgiim.cloudfront.net")
 CORS_ALLOW_HEADERS = os.getenv(
@@ -43,6 +48,25 @@ def get_first(record, *keys, default=None):
 
 def to_bool(value):
     return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def allowed_buckets():
+    buckets = set(ALLOWED_BUCKETS)
+    if RECORDINGS_BUCKET:
+        buckets.add(RECORDINGS_BUCKET)
+    return buckets
+
+
+def is_valid_recording_key(key):
+    if not key:
+        return False
+    # Block path traversal and absolute keys so the caller cannot escape
+    # the intended recording layout.
+    if key.startswith("/") or ".." in key:
+        return False
+    if RECORDING_KEY_PREFIX and not key.startswith(RECORDING_KEY_PREFIX):
+        return False
+    return True
 
 
 def extract_request_values(event):
@@ -115,6 +139,14 @@ def lambda_handler(event, context):
         bucket = recording_bucket or RECORDINGS_BUCKET
         if not bucket:
             return json_response(500, {"error": "Recordings bucket is not configured"})
+
+        # Only hand out presigned URLs for allow-listed buckets and well-formed
+        # keys; otherwise a caller could read arbitrary objects the Lambda role
+        # can reach by supplying their own bucket/key.
+        if bucket not in allowed_buckets():
+            return json_response(403, {"error": "Bucket is not allowed"})
+        if not is_valid_recording_key(recording_key):
+            return json_response(400, {"error": "Invalid recording key"})
 
         url = generate_presigned_url(bucket, recording_key, download, {})
 
