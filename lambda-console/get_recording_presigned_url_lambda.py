@@ -94,7 +94,14 @@ def extract_request_values(event):
     ).strip()
     download = to_bool(query.get("download"))
 
-    return recording_key, recording_bucket, download
+    # Optional metadata the caller can pass to get a human-friendly download
+    # filename (e.g. "홍길동-2026-06-09.wav"). Falls back to the generic name.
+    record = {
+        "recipientName": str(query.get("recipientName") or query.get("recipient_name") or "").strip(),
+        "createdAt": str(query.get("date") or query.get("createdAt") or query.get("created_at") or "").strip(),
+    }
+
+    return recording_key, recording_bucket, download, record
 
 
 def build_download_filename(record, key):
@@ -133,7 +140,7 @@ def lambda_handler(event, context):
         if method == "OPTIONS":
             return json_response(200, {})
 
-        recording_key, recording_bucket, download = extract_request_values(event)
+        recording_key, recording_bucket, download, record = extract_request_values(event)
         if not recording_key:
             return json_response(400, {"error": "key is required"})
 
@@ -149,7 +156,7 @@ def lambda_handler(event, context):
         if not is_valid_recording_key(recording_key):
             return json_response(400, {"error": "Invalid recording key"})
 
-        url = generate_presigned_url(bucket, recording_key, download, {})
+        url = generate_presigned_url(bucket, recording_key, download, record)
 
         return json_response(
             200,
