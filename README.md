@@ -27,7 +27,9 @@ revive SAM deployment explicitly.
   also expose OPTIONS plus gateway responses for auth/4XX/5XX failures.
 
 ## Main Call Flow
-
+- Amazon Connect 세팅 체크리스트: [docs/amazon-connect-setup.md](docs/amazon-connect-setup.md)
+- Contact Flow 설계안: [docs/contact-flow-design.md](docs/contact-flow-design.md)
+  
 1. `start_outbound_call_lambda.py` is invoked manually or by EventBridge
    Scheduler.
 2. The scheduler checks enabled recipients, matches `autoCallTime` against the
