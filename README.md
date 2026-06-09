@@ -122,8 +122,8 @@ sam local invoke UpdateAutoCallFunction --event events/patch-auto-call.json
 
 ## 문서
 
-- Amazon Connect 세팅 체크리스트: [docs/amazon-connect-setup.md](/C:/Users/USER/Documents/api/docs/amazon-connect-setup.md)
-- Contact Flow 설계안: [docs/contact-flow-design.md](/C:/Users/USER/Documents/api/docs/contact-flow-design.md)
+- Amazon Connect 세팅 체크리스트: [docs/amazon-connect-setup.md](docs/amazon-connect-setup.md)
+- Contact Flow 설계안: [docs/contact-flow-design.md](docs/contact-flow-design.md)
 
 ## 참고
 

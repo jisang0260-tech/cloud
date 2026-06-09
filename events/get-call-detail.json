@@ -1,0 +1,24 @@
+{
+  "version": "2.0",
+  "routeKey": "GET /api/v1/calls/logs/{session_id}",
+  "rawPath": "/api/v1/calls/logs/sess_8a7b6c5d",
+  "rawQueryString": "",
+  "pathParameters": {
+    "session_id": "sess_8a7b6c5d"
+  },
+  "requestContext": {
+    "http": {
+      "method": "GET",
+      "path": "/api/v1/calls/logs/sess_8a7b6c5d"
+    },
+    "authorizer": {
+      "jwt": {
+        "claims": {
+          "email": "admin@example.com",
+          "cognito:groups": "admin"
+        }
+      }
+    }
+  },
+  "isBase64Encoded": false
+}
