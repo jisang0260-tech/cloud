@@ -1,4 +1,86 @@
-# CareCall Cloud
+# CareCall
+
+> 독거노인을 위한 AI 기반 안부 전화 및 위험 감지 서비스
+
+CareCall은 독거노인에게 매일 정해진 시간에 자동으로 안부 전화를 걸고, 통화 내용을 AI로 분석해 정서적 이상 징후와 건강 위험 신호를 감지하는 클라우드 기반 돌봄 서비스입니다. 복지 담당자는 웹 대시보드에서 통화 현황, 위험도, 미응답 대상자, 상세 대화 리포트를 확인하고 고위험군을 우선적으로 관리할 수 있습니다.
+
+![CareCall Dashboard](docs/images/dashboard.png)
+
+## Overview
+
+기존 독거노인 돌봄 방식은 수동 전화와 방문에 크게 의존해 인력 부담이 크고, ICT 센서 기반 서비스는 감정이나 언어 신호를 파악하기 어렵다는 한계가 있습니다. CareCall은 익숙한 전화 채널을 사용하면서도 자동 발신, 음성 인식, 감정 분석, 위험도 판단, 관리자 알림을 하나의 흐름으로 연결합니다.
+
+### Key Features
+
+- 매일 정해진 시간에 대상자별 자동 안부 전화 발신
+- Amazon Lex 기반 음성 대화 및 통화 흐름 제어
+- 통화 내용 STT 변환 후 감정, 키워드, 문맥 기반 위험도 분석
+- 정상, 주의, 위험 3단계 위험도 분류 및 판단 근거 제공
+- 위험 상황 감지 시 관리자에게 알림 전송
+- 관리자 대시보드에서 통화 현황, 미응답 대상자, 위험군, 상세 이력 조회
+
+## Architecture
+
+![CareCall Architecture](docs/images/architecture.png)
+
+CareCall은 정적 웹 대시보드, 서버리스 백엔드, AI 분석 파이프라인, 데이터 저장소로 구성됩니다. 관리자는 CloudFront로 배포된 프론트엔드에 접속하고, API Gateway를 통해 Lambda 기반 백엔드와 통신합니다. 자동 발신은 EventBridge Scheduler와 Amazon Connect가 담당하며, 통화 흐름은 Amazon Lex와 Lambda Code Hook으로 제어합니다. 통화 종료 후 Bedrock, Comprehend, 규칙 기반 로직을 조합해 최종 위험도를 판단하고 DynamoDB와 S3에 결과를 저장합니다.
+
+### Flow
+
+1. 관리자가 웹 대시보드에 접속해 대상자와 통화 현황을 확인합니다.
+2. EventBridge Scheduler가 대상자별 발신 시간에 Lambda를 트리거합니다.
+3. Lambda가 Amazon Connect를 통해 대상자에게 전화를 발신합니다.
+4. Amazon Lex가 음성 대화를 진행하고 응답을 텍스트로 변환합니다.
+5. RiskJudge Lambda가 키워드, 감정, 문맥을 분석해 위험도를 산정합니다.
+6. 분석 결과와 통화 기록은 DynamoDB와 S3에 저장됩니다.
+7. 위험 단계가 높으면 SNS/Email을 통해 관리자에게 알림을 보냅니다.
+
+## Tech Stack
+
+| Area | Stack |
+| --- | --- |
+| Frontend | React, TypeScript, Amazon S3, Amazon CloudFront |
+| Backend | Amazon API Gateway, AWS Lambda, Amazon EventBridge, Amazon Connect |
+| AI | Amazon Lex, Amazon Bedrock, Amazon Comprehend |
+| Database & Storage | Amazon DynamoDB, Amazon S3 |
+| Network & Security | VPC, Private Subnet, VPC Endpoint, Amazon Cognito |
+| DevOps & Tools | GitHub Actions, Git/GitHub, Postman, Notion |
+
+## Screenshots
+
+### Risk Dashboard
+
+통화 수, 정상/주의/위험 대상자 수, 미응답 현황을 한 화면에서 확인하고 대상자별 상세 이력으로 이동할 수 있습니다.
+
+![Risk Dashboard](docs/images/dashboard.png)
+
+### Priority Sorting
+
+관리자는 미통화 우선 또는 위험도순으로 대상자를 정렬해 긴급 대응이 필요한 대상을 빠르게 찾을 수 있습니다.
+
+![Priority Sorting](docs/images/priority-sort.png)
+
+### AI Analysis Report
+
+대상자별 감정 지수 추이, 통화 요약, 판단 근거, 전체 발화 내용을 확인해 AI 판정 결과를 검토할 수 있습니다.
+
+![AI Analysis Report](docs/images/analysis-report.png)
+
+## Result
+
+- 위험 상황 탐지 정확도: 87.5% (24건 중 21건 일치)
+- 위험 시나리오 탐지 정확도: 100%
+- 안부 전화 성공률: 91.7% (24건 중 22건 유의미한 응답 기준 충족)
+- 평균 처리 시간: 약 6.2초
+- 예상 운영 비용: 20명 기준 월 약 10달러
+
+## Team
+
+CareCall은 클라우드 컴퓨팅 프로젝트로, 프론트엔드 대시보드, 서버리스 백엔드, AI 위험도 분석, 통화 자동화, 데이터 저장 구조를 역할별로 나누어 구현했습니다.
+
+---
+
+# CareCall Cloud Backend Notes
 
 CareCall AWS backend repository. The current runtime source of truth is the
 Lambda-console implementation in `lambda-console/`. The SAM files under `src/`
@@ -27,9 +109,10 @@ revive SAM deployment explicitly.
   also expose OPTIONS plus gateway responses for auth/4XX/5XX failures.
 
 ## Main Call Flow
+
 - Amazon Connect 세팅 체크리스트: [docs/amazon-connect-setup.md](docs/amazon-connect-setup.md)
 - Contact Flow 설계안: [docs/contact-flow-design.md](docs/contact-flow-design.md)
-  
+
 1. `start_outbound_call_lambda.py` is invoked manually or by EventBridge
    Scheduler.
 2. The scheduler checks enabled recipients, matches `autoCallTime` against the
